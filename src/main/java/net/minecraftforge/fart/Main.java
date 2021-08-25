@@ -1,0 +1,196 @@
+/*
+ * Forge Auto Renaming Tool
+ * Copyright (c) 2021
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation version 2.1
+ * of the License.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+package net.minecraftforge.fart;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Consumer;
+
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import joptsimple.OptionSpec;
+import net.minecraftforge.fart.api.Renamer;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        OptionParser parser = new OptionParser();
+        OptionSpec<File> inputO  = parser.accepts("input",  "Input jar file").withRequiredArg().ofType(File.class).required();
+        OptionSpec<File> outputO = parser.accepts("output", "Output jar file, if unspecifed, overwrites input").withRequiredArg().ofType(File.class);
+        OptionSpec<File> mapO    = parser.accepts("map",    "Mapping file to apply").withRequiredArg().ofType(File.class).required();
+        OptionSpec<File> logO    = parser.accepts("log",    "File to log data to, optional, defaults to System.out").withRequiredArg().ofType(File.class);
+        OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
+        OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
+        OptionSet options = parser.parse(expandArgs(args));
+
+        if (options.has(logO)) {
+            PrintStream out = System.out;
+            PrintStream log = new PrintStream(new FileOutputStream(options.valueOf(logO)));
+            hookStdOut(ln -> {
+                out.println(ln);
+                log.println(ln);
+            });
+        } else {
+            hookStdOut(System.out::println);
+        }
+
+        log("Forge Auto Renaming Tool v" + getVersion());
+        log("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
+
+        Renamer.Builder builder = Renamer.builder();
+        File mapF = options.valueOf(mapO);
+        log("map: " + mapF.getAbsolutePath());
+        builder.map(mapF);
+
+        if (options.has(libO)) {
+            for (File lib : options.valuesOf(libO)) {
+                log("lib: " + lib.getAbsolutePath());
+                builder.lib(lib);
+            }
+        }
+
+        File inputF = options.valueOf(inputO);
+        log("input: " + inputF.getAbsolutePath());
+        builder.input(inputF);
+
+
+        File outputF = options.has(outputO) ? options.valueOf(outputO) : inputF;
+        log("output: " + outputF.getAbsolutePath());
+        builder.output(outputF);
+
+        if (options.has(fixAnnO)) {
+            log("Fix Annotations: true");
+            builder.add(new ParameterAnnotationFixer());
+        } else {
+            log("Fix Annotations: false");
+        }
+
+        Renamer renamer = builder.build();
+        renamer.run();
+    }
+
+    private static void log(String line) {
+        System.out.println(line);
+    }
+
+    private static String[] expandArgs(String[] args) throws IOException {
+        List<String> ret = new ArrayList<>();
+        for (int x = 0; x < args.length; x++) {
+            if (args[x].equals("--cfg")) {
+                if (x + 1 == args.length)
+                    throw new IllegalArgumentException("No value specified for '--cfg'");
+
+                Files.lines(Paths.get(args[++x])).forEach(ret::add);
+            } else if (args[x].startsWith("--cfg=")) {
+                Files.lines(Paths.get(args[x].substring(6))).forEach(ret::add);
+            } else {
+                ret.add(args[x]);
+            }
+        }
+
+        return ret.toArray(new String[ret.size()]);
+    }
+
+    private static String getVersion() {
+        final String ver = Main.class.getPackage().getImplementationVersion();
+        return ver == null ? "UNKNOWN" : ver;
+    }
+
+    static void hookStdOut(final Consumer<String> consumer) {
+        final OutputStream monitorStream = new OutputStream() {
+            private byte[] buf = new byte[128];
+            private int index = 0;
+
+            private void ensure(int len) {
+                if (buf.length <= len) {
+                    byte[] old = buf;
+                    int max = buf.length << 1;
+                    while (max > 0 && max < len) {
+                        max += 1024;
+                    }
+                    if (max < 0)
+                        throw new OutOfMemoryError();
+                    buf = Arrays.copyOf(old, max);
+                }
+            }
+
+            private void send() {
+                if (index == 0)
+                    return; // TODO: Detect and support multiple empty lines?
+                String line = new String(buf, 0, index);
+                buf = new byte[128];
+                index = 0;
+                consumer.accept(line);
+            }
+
+            @Override
+            public synchronized void write(int b) {
+                if (b == '\r' || b == '\n') {
+                    send();
+                } else {
+                    ensure(index + 1);
+                    buf[index++] = (byte)b;
+                }
+            }
+
+            @Override
+            public synchronized void write(byte b[], int off, int len) {
+                if (off < 0 || len < 0 || off > b.length || (off + len) >= b.length)
+                    throw new IndexOutOfBoundsException();
+
+                while (len > 0) {
+                    int x = 0;
+                    for (; x < len; x++) {
+                        byte i = b[off + x];
+                        if (i == '\r' || i == '\n')
+                            break;
+                    }
+                    ensure(index + x);
+                    System.arraycopy(b, off, buf, index, x);
+                    index += x;
+
+                    if (x != len) {
+                        send();
+                        x++; //Skip this char
+                        len -= x;
+                        off += x;
+                        if (b[off - 1] == '\r' && b[off] == '\n') {
+                            len--;
+                            off++;
+                        }
+                    } else {
+                        off += len;
+                        len = 0;
+                    }
+                }
+            }
+        };
+
+        System.setOut(new PrintStream(monitorStream));
+        System.setErr(new PrintStream(monitorStream));
+    }
+}

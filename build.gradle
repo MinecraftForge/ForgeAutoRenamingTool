@@ -1,0 +1,151 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.minecraftforge.net/' }
+    }
+    dependencies {
+        classpath 'net.minecraftforge:GradleUtils:1.+'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'eclipse'
+    id 'maven-publish'
+    id 'org.cadixdev.licenser' version '0.6.1'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+}
+apply plugin: 'net.minecraftforge.gradleutils'
+
+group 'net.minecraftforge'
+version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
+println('Version: ' + version)
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+compileJava.options.encoding = 'UTF-8'
+
+ext {
+    CHANGELOG = rootProject.file('build/changelog.txt')
+    REPO = 'ForgeAutoRenamingTool'
+    TITLE = 'Forge Auto Renaming Tool'
+    MANIFEST = manifest{
+        attributes('Main-Class': 'net.minecraftforge.fart.Main')
+        attributes([
+            'Specification-Title':      'ForgeAutoRenamingTool',
+            'Specification-Vendor':     'Forge Development LLC',
+            'Specification-Version':    gradleutils.gitInfo.tag,
+            'Implementation-Title':     'SimpleInstaller',
+            'Implementation-Version':   project.version,
+            'Implementation-Vendor':    'Forge Development LLC'
+        ] as LinkedHashMap, 'net/minecraftforge/fart/')
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+license {
+    header = file('LICENSE-header.txt')
+    ext.project = TITLE
+}
+
+dependencies {
+    implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
+    implementation 'net.minecraftforge:srgutils:0.4.3'
+    implementation 'org.ow2.asm:asm:9.2'
+    implementation 'org.ow2.asm:asm-commons:9.2'
+    implementation 'org.ow2.asm:asm-tree:9.2'
+    
+	testImplementation(platform('org.junit:junit-bom:5.7.2'))
+	testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation('org.powermock:powermock-core:2.0.9')
+    
+    compileOnly('com.google.code.findbugs:jsr305:3.0.2')
+}
+
+
+test {
+  useJUnitPlatform()
+  testLogging {
+    events 'passed', 'skipped', 'failed'
+  }
+}
+
+task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+shadowJar {
+    manifest.from(MANIFEST)
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            if (CHANGELOG.exists()) {
+                artifact(CHANGELOG) {
+                    classifier = 'changelog'
+                }
+            }
+            artifact jar
+            artifact sourcesJar
+            artifact shadowJar
+            pom {
+                name = TITLE
+                description = 'A tool that renames java bytecode elements.'
+                url = "https://github.com/MinecraftForge/${REPO}"
+                scm {
+                    url = "https://github.com/MinecraftForge/${REPO}"
+                    connection = "scm:git:git://github.com/MinecraftForge/${REPO}.git"
+                    developerConnection = "scm:git:git@github.com:MinecraftForge/${REPO}.git"
+                }
+                issueManagement {
+                    system = 'github'
+                    url = "https://github.com/MinecraftForge/${REPO}/issues"
+                }
+
+                licenses {
+                    license {
+                        name = 'LGPLv2.1'
+                        url = 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'LexManos'
+                        name = 'LexManos'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            if (System.env.MAVEN_USER) {
+                url 'https://maven.minecraftforge.net/'
+                authentication {
+                    basic(BasicAuthentication)
+                }
+                credentials {
+                    username = System.env.MAVEN_USER ?: 'not'
+                    password = System.env.MAVEN_PASSWORD ?: 'set'
+                }
+            } else {
+                url 'file://' + rootProject.file('repo').getAbsolutePath()
+            }
+        }
+    }
+}
