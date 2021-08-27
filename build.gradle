@@ -4,7 +4,7 @@ buildscript {
         maven { url = 'https://maven.minecraftforge.net/' }
     }
     dependencies {
-        classpath 'net.minecraftforge:GradleUtils:1.+'
+        classpath 'net.minecraftforge.gradleutils:GradleUtils:1.+'
     }
 }
 
