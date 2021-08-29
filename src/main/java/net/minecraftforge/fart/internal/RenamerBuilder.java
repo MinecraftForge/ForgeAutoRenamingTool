@@ -36,6 +36,7 @@ public class RenamerBuilder implements Builder {
     private File output;
     private List<File> libraries = new ArrayList<>();
     private List<Transformer> transformers = new ArrayList<>();
+    private int threads = Runtime.getRuntime().availableProcessors();
 
     @Override
     public Builder input(File value) {
@@ -72,7 +73,13 @@ public class RenamerBuilder implements Builder {
     }
 
     @Override
+    public Builder threads(int value) {
+        this.threads = value;
+        return this;
+    }
+
+    @Override
     public Renamer build() {
-        return new RenamerImpl(input, output, libraries, transformers, inh);
+        return new RenamerImpl(input, output, libraries, transformers, inh, threads);
     }
 }

@@ -20,9 +20,7 @@
 package net.minecraftforge.fart.internal;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;
@@ -59,17 +57,7 @@ class EnhancedClassRemapper extends ClassRemapper {
         return new MethodRemapper(methodVisitor, remapper) {
             @Override
             public void visitLocalVariable(final String pname, final String pdescriptor, final String psignature, final Label start, final Label end, final int index) {
-                super.visitLocalVariable(renameSnowmen(EnhancedClassRemapper.this.remapper.mapParameterName(className, mname, mdescriptor, index, pname), index), pdescriptor, psignature, start, end, index);
-            }
-
-            // Snowmen, added in 1.8.2? rename them names that can exist in source
-            private final Map<Integer, Integer> seen = new HashMap<>();
-            private String renameSnowmen(String name, int index) {
-                if (0x2603 != name.charAt(0))
-                    return name;
-                int version = seen.computeIfAbsent(index, k -> 0) + 1;
-                seen.put(index, version);
-                return "lvt_" + index + '_' + version + '_';
+                super.visitLocalVariable(EnhancedClassRemapper.this.remapper.mapParameterName(className, mname, mdescriptor, index, pname), pdescriptor, psignature, start, end, index);
             }
 
             @Override

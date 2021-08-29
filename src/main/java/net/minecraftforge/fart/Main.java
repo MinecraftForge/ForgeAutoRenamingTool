@@ -29,11 +29,15 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import joptsimple.ValueConverter;
+import net.minecraftforge.fart.IdentifierFixer.Config;
 import net.minecraftforge.fart.api.Renamer;
 
 public class Main {
@@ -45,6 +49,8 @@ public class Main {
         OptionSpec<File> logO    = parser.accepts("log",    "File to log data to, optional, defaults to System.out").withRequiredArg().ofType(File.class);
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
+        OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConfig()).defaultsTo(IdentifierFixer.Config.ALL);
+        OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSet options = parser.parse(expandArgs(args));
 
         if (options.has(logO)) {
@@ -62,6 +68,9 @@ public class Main {
         log("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
 
         Renamer.Builder builder = Renamer.builder();
+        log("threads: " + options.valueOf(threadsO));
+        builder.threads(options.valueOf(threadsO));
+
         File mapF = options.valueOf(mapO);
         log("map: " + mapF.getAbsolutePath());
         builder.map(mapF);
@@ -87,6 +96,13 @@ public class Main {
             builder.add(new ParameterAnnotationFixer());
         } else {
             log("Fix Annotations: false");
+        }
+
+        if (options.has(fixIdsO)) {
+            log("Fix Identifiers: " + options.valueOf(fixIdsO));
+            builder.add(new IdentifierFixer(options.valueOf(fixIdsO)));
+        } else {
+            log("Fix Identifiers: false");
         }
 
         Renamer renamer = builder.build();
@@ -192,5 +208,22 @@ public class Main {
 
         System.setOut(new PrintStream(monitorStream));
         System.setErr(new PrintStream(monitorStream));
+    }
+
+    private static class IDConfig implements ValueConverter<IdentifierFixer.Config> {
+        @Override
+        public Config convert(String value) {
+            return IdentifierFixer.Config.valueOf(value.toUpperCase(Locale.ENGLISH));
+        }
+
+        @Override
+        public Class<? extends Config> valueType() {
+            return IdentifierFixer.Config.class;
+        }
+
+        @Override
+        public String valuePattern() {
+            return Arrays.stream(IdentifierFixer.Config.values()).map(Enum::name).collect(Collectors.joining("|"));
+        }
     }
 }

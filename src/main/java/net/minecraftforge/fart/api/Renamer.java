@@ -36,6 +36,7 @@ public interface Renamer {
         Builder lib(File value);
         Builder map(File value);
         Builder add(Transformer value);
+        Builder threads(int value);
         Renamer build();
     }
 }

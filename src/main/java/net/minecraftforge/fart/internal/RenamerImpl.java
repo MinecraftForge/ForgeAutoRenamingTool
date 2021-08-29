@@ -48,13 +48,15 @@ class RenamerImpl implements Renamer {
     private final List<File> libraries;
     private final List<Transformer> transformers;
     private final Inheritance inh;
+    private final int threads;
 
-    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh) {
+    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads) {
         this.input = input;
         this.output = output;
         this.libraries = libraries;
         this.transformers = transformers;
         this.inh = inh;
+        this.threads = threads;
     }
 
     @Override
@@ -86,72 +88,80 @@ class RenamerImpl implements Renamer {
             throw new RuntimeException("Could not parse input: " + input.getAbsolutePath(), e);
         }
 
-        AsyncHelper async = new AsyncHelper();
+        AsyncHelper async = new AsyncHelper(threads);
+        try {
 
-        // Gather original file Hashes, so that we can detect changes and update the manifest if necessary
-        log("Gathering original hashes");
-        Map<String, String> oldHashes = async.invokeAll(oldEntries,
-            e -> new Pair<>(e.getName(), HashFunction.SHA256.hash(e.getData()))
-        ).stream().collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+            /* Disabled until we do something with it
+            // Gather original file Hashes, so that we can detect changes and update the manifest if necessary
+            log("Gathering original hashes");
+            Map<String, String> oldHashes = async.invokeAll(oldEntries,
+                e -> new Pair<>(e.getName(), HashFunction.SHA256.hash(e.getData()))
+            ).stream().collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+            */
 
-        List<ClassEntry> ourClasses = oldEntries.stream()
-            .filter(e -> e instanceof ClassEntry && !e.getName().startsWith("META-INF/"))
-            .map(ClassEntry.class::cast)
-            .collect(Collectors.toList());
+            List<ClassEntry> ourClasses = oldEntries.stream()
+                .filter(e -> e instanceof ClassEntry && !e.getName().startsWith("META-INF/"))
+                .map(ClassEntry.class::cast)
+                .collect(Collectors.toList());
 
-        // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
-        log("Adding input to inheritence map");
-        async.consumeAll(ourClasses, c ->
-            inh.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
-        );
+            // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
+            log("Adding input to inheritence map");
+            async.consumeAll(ourClasses, c ->
+                inh.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
+            );
 
-        // Process everything
-        log("Processing entries");
-        List<Entry> newEntries = async.invokeAll(oldEntries, this::processEntry);
+            // Process everything
+            log("Processing entries");
+            List<Entry> newEntries = async.invokeAll(oldEntries, this::processEntry);
 
-        log("Adding extras");
-        transformers.stream().forEach(t -> newEntries.addAll(t.getExtras()));
+            log("Adding extras");
+            transformers.stream().forEach(t -> newEntries.addAll(t.getExtras()));
 
-        Set<String> seen = new HashSet<>();
-        String dupes = newEntries.stream().map(Entry::getName)
-            .filter(n -> !seen.add(n))
-            .sorted()
-            .collect(Collectors.joining(", "));
-        if (!dupes.isEmpty())
-            throw new IllegalStateException("Duplicate entries detected: " + dupes);
+            Set<String> seen = new HashSet<>();
+            String dupes = newEntries.stream().map(Entry::getName)
+                .filter(n -> !seen.add(n))
+                .sorted()
+                .collect(Collectors.joining(", "));
+            if (!dupes.isEmpty())
+                throw new IllegalStateException("Duplicate entries detected: " + dupes);
 
-        log("Collecting new hashes");
-        Map<String, String> newHashes = async.invokeAll(newEntries,
-            e -> new Pair<>(e.getName(), HashFunction.SHA256.hash(e.getData()))
-        ).stream().collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+            /*
+            log("Collecting new hashes");
+            Map<String, String> newHashes = async.invokeAll(newEntries,
+                e -> new Pair<>(e.getName(), HashFunction.SHA256.hash(e.getData()))
+            ).stream().collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+            */
 
-        // We care about stable output, so sort, and single thread write.
-        log("Sorting");
-        Collections.sort(newEntries, this::compare);
+            // We care about stable output, so sort, and single thread write.
+            log("Sorting");
+            Collections.sort(newEntries, this::compare);
 
-        if (!output.getParentFile().exists())
-            output.getParentFile().mkdirs();
+            if (!output.getParentFile().exists())
+                output.getParentFile().mkdirs();
 
-        seen.clear();
-        log("Writing Output: " + output.getAbsolutePath());
-        try (FileOutputStream fos = new FileOutputStream(output);
-             ZipOutputStream zos = new ZipOutputStream(fos)) {
+            seen.clear();
+            log("Writing Output: " + output.getAbsolutePath());
+            try (FileOutputStream fos = new FileOutputStream(output);
+                ZipOutputStream zos = new ZipOutputStream(fos)) {
 
-            for (Entry e : newEntries) {
-                String name = e.getName();
-                int idx = name.lastIndexOf('/');
-                if (idx != -1)
-                    addDirectory(zos, seen, name.substring(0, idx));
+                for (Entry e : newEntries) {
+                    String name = e.getName();
+                    int idx = name.lastIndexOf('/');
+                    if (idx != -1)
+                        addDirectory(zos, seen, name.substring(0, idx));
 
-                log("  " + name);
-                ZipEntry entry = new ZipEntry(name);
-                entry.setTime(e.getTime());
-                zos.putNextEntry(entry);
-                zos.write(e.getData());
-                zos.closeEntry();
+                    log("  " + name);
+                    ZipEntry entry = new ZipEntry(name);
+                    entry.setTime(e.getTime());
+                    zos.putNextEntry(entry);
+                    zos.write(e.getData());
+                    zos.closeEntry();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } finally {
+            async.shutdown();
         }
     }
 

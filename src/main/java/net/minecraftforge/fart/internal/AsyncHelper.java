@@ -32,8 +32,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class AsyncHelper {
-    //ExecutorService exec = Executors.newSingleThreadExecutor();
-    ExecutorService exec = Executors.newWorkStealingPool();
+    private final ExecutorService exec;
+    AsyncHelper(int threads) {
+        if (threads <= 0)
+            throw new IllegalArgumentException("Really.. no threads to process things? What do you want me to use a genie?");
+        else if (threads == 1)
+            exec = Executors.newSingleThreadExecutor();
+        else
+            exec = Executors.newWorkStealingPool(threads);
+    }
 
     public <I,O> void consumeAll(Collection<? extends I> inputs, Consumer<I> consumer) {
         Function<I, Callable<Void>> toCallable = i -> () -> {
