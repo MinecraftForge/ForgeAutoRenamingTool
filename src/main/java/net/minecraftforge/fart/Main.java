@@ -37,7 +37,6 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import joptsimple.ValueConverter;
-import net.minecraftforge.fart.IdentifierFixer.Config;
 import net.minecraftforge.fart.api.Renamer;
 
 public class Main {
@@ -49,7 +48,8 @@ public class Main {
         OptionSpec<File> logO    = parser.accepts("log",    "File to log data to, optional, defaults to System.out").withRequiredArg().ofType(File.class);
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
-        OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConfig()).defaultsTo(IdentifierFixer.Config.ALL);
+        OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixer.Config.ALL);
+        OptionSpec<SourceFixer.Config> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixer.Config.JAVA);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSet options = parser.parse(expandArgs(args));
 
@@ -103,6 +103,13 @@ public class Main {
             builder.add(new IdentifierFixer(options.valueOf(fixIdsO)));
         } else {
             log("Fix Identifiers: false");
+        }
+
+        if (options.has(fixSrcO)) {
+            log("Fix SourceFile: " + options.valueOf(fixSrcO));
+            builder.add(new SourceFixer(options.valueOf(fixSrcO)));
+        } else {
+            log("Fix SourceFile: false");
         }
 
         Renamer renamer = builder.build();
@@ -210,20 +217,37 @@ public class Main {
         System.setErr(new PrintStream(monitorStream));
     }
 
-    private static class IDConfig implements ValueConverter<IdentifierFixer.Config> {
+    private static class IDConverter implements ValueConverter<IdentifierFixer.Config> {
         @Override
-        public Config convert(String value) {
+        public IdentifierFixer.Config convert(String value) {
             return IdentifierFixer.Config.valueOf(value.toUpperCase(Locale.ENGLISH));
         }
 
         @Override
-        public Class<? extends Config> valueType() {
+        public Class<? extends IdentifierFixer.Config> valueType() {
             return IdentifierFixer.Config.class;
         }
 
         @Override
         public String valuePattern() {
             return Arrays.stream(IdentifierFixer.Config.values()).map(Enum::name).collect(Collectors.joining("|"));
+        }
+    }
+
+    private static class SrcConverter implements ValueConverter<SourceFixer.Config> {
+        @Override
+        public SourceFixer.Config convert(String value) {
+            return SourceFixer.Config.valueOf(value.toUpperCase(Locale.ENGLISH));
+        }
+
+        @Override
+        public Class<? extends SourceFixer.Config> valueType() {
+            return SourceFixer.Config.class;
+        }
+
+        @Override
+        public String valuePattern() {
+            return Arrays.stream(SourceFixer.Config.values()).map(Enum::name).collect(Collectors.joining("|"));
         }
     }
 }
