@@ -36,6 +36,7 @@ import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.srgutils.IMappingFile;
 
 public class RenamingTransformer implements Transformer {
+    private static final String ABSTRACT_FILE = "fernflower_abstract_parameter_names.txt";
     private final EnhancedRemapper remapper;
     private final Set<String> abstractParams = ConcurrentHashMap.newKeySet();
 
@@ -66,6 +67,8 @@ public class RenamingTransformer implements Transformer {
 
     @Override
     public ResourceEntry process(ResourceEntry entry) {
+        if (ABSTRACT_FILE.equals(entry.getName()))
+            return null;
         return entry;
     }
 
@@ -74,7 +77,7 @@ public class RenamingTransformer implements Transformer {
         if (abstractParams.isEmpty())
             return Collections.emptyList();
         byte[] data = abstractParams.stream().sorted().collect(Collectors.joining("\n")).getBytes(StandardCharsets.UTF_8);
-        return Arrays.asList(ResourceEntry.create("fernflower_abstract_parameter_names.txt", Entry.STABLE_TIMESTAMP, data));
+        return Arrays.asList(ResourceEntry.create(ABSTRACT_FILE, Entry.STABLE_TIMESTAMP, data));
     }
 
     void storeNames(String className, String methodName, String methodDescriptor, Collection<String> paramNames) {

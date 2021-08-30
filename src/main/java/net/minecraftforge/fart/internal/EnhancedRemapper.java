@@ -307,7 +307,12 @@ class EnhancedRemapper extends Remapper {
             if (desc == null) {
                 return this.fields.computeIfAbsent(name, k -> Optional.empty());
             } else {
-                return this.fields.computeIfAbsent(name + desc, k -> this.fields.computeIfAbsent(name, k2 -> Optional.empty()));
+                Optional<MField> ret = this.fields.get(name + desc);
+                if (ret == null) {
+                    ret = getField(name, null);
+                    this.fields.put(name + desc, ret);
+                }
+                return ret;
             }
         }
 
