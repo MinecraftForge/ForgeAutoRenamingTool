@@ -27,7 +27,6 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 
 import net.minecraftforge.fart.api.Transformer;
 
@@ -39,7 +38,6 @@ class IdentifierFixer implements Transformer {
         SNOWMEN;
     }
 
-    private static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private final Config config;
 
     IdentifierFixer(Config config) {
@@ -63,7 +61,7 @@ class IdentifierFixer implements Transformer {
     private class Fixer extends ClassVisitor {
         private boolean madeChange = false;
         public Fixer(ClassVisitor parent) {
-            super(MAX_ASM_VERSION, parent);
+            super(Main.MAX_ASM_VERSION, parent);
         }
 
         public boolean madeChange() {
@@ -73,7 +71,7 @@ class IdentifierFixer implements Transformer {
         @Override
         public final MethodVisitor visitMethod(final int access, final String name, final String descriptor, final String signature, final String[] exceptions) {
             MethodVisitor parent = super.visitMethod(access, name, descriptor, signature, exceptions);
-            return new MethodVisitor(Opcodes.ASM9, parent) {
+            return new MethodVisitor(Main.MAX_ASM_VERSION, parent) {
                 @Override
                 public void visitLocalVariable(final String pname, final String pdescriptor, final String psignature, final Label start, final Label end, final int index) {
                     String newName = fixName(pname, index);

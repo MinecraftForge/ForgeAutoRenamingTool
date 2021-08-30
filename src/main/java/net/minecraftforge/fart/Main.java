@@ -33,6 +33,8 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.objectweb.asm.Opcodes;
+
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
@@ -40,17 +42,19 @@ import joptsimple.ValueConverter;
 import net.minecraftforge.fart.api.Renamer;
 
 public class Main {
+    static final int MAX_ASM_VERSION = Opcodes.ASM9;
     public static void main(String[] args) throws IOException {
         OptionParser parser = new OptionParser();
         OptionSpec<File> inputO  = parser.accepts("input",  "Input jar file").withRequiredArg().ofType(File.class).required();
         OptionSpec<File> outputO = parser.accepts("output", "Output jar file, if unspecifed, overwrites input").withRequiredArg().ofType(File.class);
-        OptionSpec<File> mapO    = parser.accepts("map",    "Mapping file to apply").withRequiredArg().ofType(File.class).required();
+        OptionSpec<File> mapO    = parser.acceptsAll(Arrays.asList("map", "names"),    "Mapping file to apply").withRequiredArg().ofType(File.class);
         OptionSpec<File> logO    = parser.accepts("log",    "File to log data to, optional, defaults to System.out").withRequiredArg().ofType(File.class);
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
         OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixer.Config.ALL);
         OptionSpec<SourceFixer.Config> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixer.Config.JAVA);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
+        OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSet options = parser.parse(expandArgs(args));
 
         if (options.has(logO)) {
@@ -65,16 +69,10 @@ public class Main {
         }
 
         log("Forge Auto Renaming Tool v" + getVersion());
-        log("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
-
         Renamer.Builder builder = Renamer.builder();
-        log("threads: " + options.valueOf(threadsO));
-        builder.threads(options.valueOf(threadsO));
 
-        File mapF = options.valueOf(mapO);
-        log("map: " + mapF.getAbsolutePath());
-        builder.map(mapF);
-
+        // Move this up top so that the log lines are above the rest of the config as they can be spammy.
+        // Its useful information but we care more about the specific configs.
         if (options.has(libO)) {
             for (File lib : options.valuesOf(libO)) {
                 log("lib: " + lib.getAbsolutePath());
@@ -82,14 +80,28 @@ public class Main {
             }
         }
 
+        log("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
+
         File inputF = options.valueOf(inputO);
         log("input: " + inputF.getAbsolutePath());
         builder.input(inputF);
 
-
         File outputF = options.has(outputO) ? options.valueOf(outputO) : inputF;
         log("output: " + outputF.getAbsolutePath());
         builder.output(outputF);
+
+        log("threads: " + options.valueOf(threadsO));
+        builder.threads(options.valueOf(threadsO));
+
+        // Map is optional so that we can run other fixes without renaming.
+        // This does mean that it's not strictly a 'renaming' tool but screw it I like the name.
+        if (options.has(mapO)) {
+            File mapF = options.valueOf(mapO);
+            log("Names: " + mapF.getAbsolutePath());
+            builder.map(mapF);
+        } else {
+            log("Names: null");
+        }
 
         if (options.has(fixAnnO)) {
             log("Fix Annotations: true");
@@ -110,6 +122,14 @@ public class Main {
             builder.add(new SourceFixer(options.valueOf(fixSrcO)));
         } else {
             log("Fix SourceFile: false");
+        }
+
+        if (options.has(ffLinesO)) {
+            File lines = options.valueOf(ffLinesO);
+            log("Fix Line Numbers: " + lines.getAbsolutePath());
+            builder.add(new FFLineFixer(lines));
+        } else {
+            log("Fix Line Numbers: false");
         }
 
         Renamer renamer = builder.build();

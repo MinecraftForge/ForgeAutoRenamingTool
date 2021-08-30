@@ -22,7 +22,6 @@ package net.minecraftforge.fart;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
 
 import net.minecraftforge.fart.api.Transformer;
 
@@ -33,7 +32,6 @@ public class SourceFixer implements Transformer {
         // If people care they can PR scala/kotlin/groovy, or map based support
     }
 
-    private static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private final Config config;
 
     SourceFixer(Config config) {
@@ -60,7 +58,7 @@ public class SourceFixer implements Transformer {
         private boolean hadEntry = false;
 
         public Fixer(ClassVisitor parent) {
-            super(MAX_ASM_VERSION, parent);
+            super(Main.MAX_ASM_VERSION, parent);
         }
 
         public boolean madeChange() {

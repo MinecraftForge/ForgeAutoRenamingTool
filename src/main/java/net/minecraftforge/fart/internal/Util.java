@@ -58,5 +58,5 @@ class Util {
     }
     public static String nameToBytecode(String cls) {
         return cls == null ? null : cls.replace('.', '/');
-    } 
+    }
 }
