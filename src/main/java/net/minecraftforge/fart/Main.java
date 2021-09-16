@@ -51,6 +51,7 @@ public class Main {
         OptionSpec<File> logO    = parser.accepts("log",    "File to log data to, optional, defaults to System.out").withRequiredArg().ofType(File.class);
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
+        OptionSpec<Void> fixRecordsO = parser.accepts("record-fix", "Fixes record component data stripped by Proguard.");
         OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixer.Config.ALL);
         OptionSpec<SourceFixer.Config> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixer.Config.JAVA);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
@@ -108,6 +109,13 @@ public class Main {
             builder.add(new ParameterAnnotationFixer());
         } else {
             log("Fix Annotations: false");
+        }
+
+        if (options.has(fixRecordsO)) {
+            log("Fix Records: true");
+            builder.add(new RecordFixer());
+        } else {
+            log("Fix Records: false");
         }
 
         if (options.has(fixIdsO)) {
