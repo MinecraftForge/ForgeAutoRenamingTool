@@ -77,7 +77,11 @@ class RecordFixer extends OptionalChangeTransformer {
 
         @Override
         public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-            if (isRecord && (addingRecordComponents || !hasRecordComponents) && (access & Opcodes.ACC_PRIVATE) != 0 && (access & Opcodes.ACC_FINAL) != 0 && (access & Opcodes.ACC_STATIC) == 0) {
+            // We want any fields that are final and not static. Proguard sometimes increases the visibility of record component fields to be higher than private.
+            // These fields still need to have record components generated, so we need to ignore ACC_PRIVATE.
+            if (isRecord && (addingRecordComponents || !hasRecordComponents) && (access & (Opcodes.ACC_FINAL | Opcodes.ACC_STATIC)) == Opcodes.ACC_FINAL) {
+                // Make sure the visibility gets set back to private
+                access = access & ~(Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PRIVATE;
                 this.madeChange = true;
                 this.addingRecordComponents = true;
                 // Manually add the record component back if this class doesn't have any
