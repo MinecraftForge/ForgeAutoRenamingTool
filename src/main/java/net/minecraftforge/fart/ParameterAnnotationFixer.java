@@ -119,6 +119,16 @@ public class ParameterAnnotationFixer implements Transformer {
                 return null; // It's an anonymous class
             }
 
+            if (info.outerName == null) {
+                int idx = cls.name.lastIndexOf('$');
+                if (idx == -1) {
+                    debug("  Not cosidering " + cls.name + " for extra parameter annotations as it does not appear to be an inner class");
+                    return null;
+                }
+                debug("  Considering " + cls.name + " for extra parameter annotations as its name appears to be an inner class of " + cls.name.substring(0, idx));
+                return new Type[] { Type.getObjectType(cls.name.substring(0, idx)) };
+            }
+
             debug("  Considering " + cls.name + " for extra parameter annotations as it is an inner class of " + info.outerName);
             return new Type[] { Type.getObjectType(info.outerName) };
         }

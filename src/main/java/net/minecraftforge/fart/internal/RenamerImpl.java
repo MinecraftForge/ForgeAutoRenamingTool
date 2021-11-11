@@ -51,8 +51,8 @@ class RenamerImpl implements Renamer {
     private final int threads;
 
     RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads) {
-        this.input = input;
-        this.output = output;
+        this.input = input.getAbsoluteFile();
+        this.output = output.getAbsoluteFile();
         this.libraries = libraries;
         this.transformers = transformers;
         this.inh = inh;
