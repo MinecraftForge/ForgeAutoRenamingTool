@@ -19,7 +19,7 @@
 
 package net.minecraftforge.fart;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.objectweb.asm.ClassVisitor;
@@ -62,7 +62,7 @@ class RecordFixer extends OptionalChangeTransformer {
                 access = access & ~(Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PRIVATE;
                 // Manually add the record component back if this class doesn't have any
                 if (components == null)
-                    components = new HashMap<String, Entry>();
+                    components = new LinkedHashMap<String, Entry>();
                 components.put(name + descriptor, new Entry(name, descriptor, signature));
             }
             return super.visitField(access, name, descriptor, signature, value);
