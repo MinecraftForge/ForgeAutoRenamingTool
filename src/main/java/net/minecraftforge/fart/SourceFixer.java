@@ -19,50 +19,27 @@
 
 package net.minecraftforge.fart;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
 
-import net.minecraftforge.fart.api.Transformer;
-
-public class SourceFixer implements Transformer {
+public class SourceFixer extends OptionalChangeTransformer {
     enum Config {
         // Uses java style Source file names, this means inner classes get the parent, and it uses a .java extension.
         JAVA;
         // If people care they can PR scala/kotlin/groovy, or map based support
     }
 
-    private final Config config;
-
     SourceFixer(Config config) {
-        this.config = config;
+        super(parent -> new Fixer(config, parent));
     }
 
-    @Override
-    public ClassEntry process(ClassEntry entry) {
-        ClassReader reader = new ClassReader(entry.getData());
-        ClassWriter writer = new ClassWriter(reader, 0);
-        Fixer fixer = new Fixer(writer);
-
-        reader.accept(fixer, 0);
-
-        if (!fixer.madeChange())
-            return entry;
-
-        return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
-    }
-
-    private class Fixer extends ClassVisitor {
-        private boolean madeChange = false;
+    private static class Fixer extends ClassFixer {
+        private final Config config;
         private String className = null;
         private boolean hadEntry = false;
 
-        public Fixer(ClassVisitor parent) {
-            super(Main.MAX_ASM_VERSION, parent);
-        }
-
-        public boolean madeChange() {
-            return this.madeChange;
+        public Fixer(Config config, ClassVisitor parent) {
+            super(parent);
+            this.config = config;
         }
 
         public void visit(final int version, final int access, final String name, final String signature, final String superName, final String[] interfaces) {

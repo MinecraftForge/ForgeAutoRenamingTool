@@ -30,7 +30,7 @@ import org.objectweb.asm.MethodVisitor;
 
 import net.minecraftforge.fart.api.Transformer;
 
-class IdentifierFixer implements Transformer {
+class IdentifierFixer extends OptionalChangeTransformer {
     enum Config {
         // Checks all Local variables if they are valid java identifiers.
         ALL,
@@ -38,30 +38,16 @@ class IdentifierFixer implements Transformer {
         SNOWMEN;
     }
 
-    private final Config config;
-
     IdentifierFixer(Config config) {
-        this.config = config;
+        super(parent -> new Fixer(config, parent));
     }
 
-    @Override
-    public ClassEntry process(ClassEntry entry) {
-        ClassReader reader = new ClassReader(entry.getData());
-        ClassWriter writer = new ClassWriter(reader, 0);
-        Fixer fixer = new Fixer(writer);
+    private static class Fixer extends ClassFixer {
+        private final Config config;
 
-        reader.accept(fixer, 0);
-
-        if (!fixer.madeChange())
-            return entry;
-
-        return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
-    }
-
-    private class Fixer extends ClassVisitor {
-        private boolean madeChange = false;
-        public Fixer(ClassVisitor parent) {
-            super(Main.MAX_ASM_VERSION, parent);
+        public Fixer(Config config, ClassVisitor parent) {
+            super(parent);
+            this.config = config;
         }
 
         public boolean madeChange() {
