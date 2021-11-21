@@ -22,12 +22,19 @@ package net.minecraftforge.fart.api;
 import java.io.File;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import net.minecraftforge.fart.internal.InheritanceImpl;
 
+import static java.util.Objects.requireNonNull;
+
 public interface Inheritance {
     static Inheritance create() {
-        return new InheritanceImpl();
+        return new InheritanceImpl(System.out::println);
+    }
+
+    static Inheritance create(Consumer<String> out) {
+        return new InheritanceImpl(requireNonNull(out));
     }
 
     void addLibrary(File path);

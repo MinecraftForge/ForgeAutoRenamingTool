@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.objectweb.asm.ClassReader;
@@ -40,8 +41,8 @@ public class RenamingTransformer implements Transformer {
     private final EnhancedRemapper remapper;
     private final Set<String> abstractParams = ConcurrentHashMap.newKeySet();
 
-    public RenamingTransformer(Inheritance inh, IMappingFile map) {
-        this.remapper = new EnhancedRemapper(inh, map);
+    public RenamingTransformer(Inheritance inh, IMappingFile map, Consumer<String> log) {
+        this.remapper = new EnhancedRemapper(inh, map, log);
     }
 
     @Override

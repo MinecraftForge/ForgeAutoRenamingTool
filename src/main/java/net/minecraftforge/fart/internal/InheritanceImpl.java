@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -50,8 +51,13 @@ import org.objectweb.asm.tree.MethodNode;
 import net.minecraftforge.fart.api.Inheritance;
 
 public class InheritanceImpl implements Inheritance {
+    private final Consumer<String> log;
     private Map<String, File> sources = new HashMap<>();
     private Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
+
+    public InheritanceImpl(Consumer<String> log) {
+        this.log = log;
+    }
 
     @Override
     public void addLibrary(File path) {
@@ -95,14 +101,10 @@ public class InheritanceImpl implements Inheritance {
                 Class<?> cls = Class.forName(name.replace('/', '.'), false, this.getClass().getClassLoader());
                 return Optional.of(new ClassInfo(cls));
             } catch (ClassNotFoundException ex) {
-                log("Cant Find Class: " + name);
+                log.accept("Cant Find Class: " + name);
                 return Optional.empty();
             }
         }
-    }
-
-    private void log(String line) {
-        System.out.println(line);
     }
 
     private static class ClassInfo implements IClassInfo {

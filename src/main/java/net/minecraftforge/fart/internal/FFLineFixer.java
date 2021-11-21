@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -40,7 +41,7 @@ import net.minecraftforge.fart.api.Transformer;
 public final class FFLineFixer implements Transformer {
     private final Map<String, NavigableMap<Integer, Integer>> classes = new HashMap<>();
 
-    public FFLineFixer(File data) {
+    public FFLineFixer(Consumer<String> debug, File data) {
         try (FileInputStream fis = new FileInputStream(data);
             ZipInputStream zip = new ZipInputStream(fis)) {
             ZipEntry entry = null;
@@ -57,7 +58,7 @@ public final class FFLineFixer implements Transformer {
                     short len = buf.getShort();
                     if (id == 0x4646) { //FF
                         String cls = entry.getName().substring(0, entry.getName().length() - 5);
-                        log("Lines: " + cls);
+                        debug.accept("Lines: " + cls);
                         int ver = buf.get();
                         if (ver != 1)
                             throw new IllegalStateException("Invalid FF code line version for " + entry.getName());
@@ -66,7 +67,7 @@ public final class FFLineFixer implements Transformer {
                         for (int x = 0; x < count; x++) {
                             int oline = buf.getShort();
                             int nline = buf.getShort();
-                            log("  " + oline + ' ' + nline);
+                            debug.accept("  " + oline + ' ' + nline);
                             lines.put(oline, nline);
                         }
                         classes.put(cls, lines);
@@ -78,10 +79,6 @@ public final class FFLineFixer implements Transformer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private static void log(String line) {
-        //System.out.println(line);
     }
 
     @Override

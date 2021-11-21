@@ -21,7 +21,6 @@ package net.minecraftforge.fart;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
@@ -58,94 +57,96 @@ public class Main {
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSet options = parser.parse(expandArgs(args));
 
+        Consumer<String> log = ln -> {
+            if (!ln.isEmpty()) {
+                System.out.println(ln);
+            }
+        };
         if (options.has(logO)) {
             PrintStream out = System.out;
-            PrintStream log = new PrintStream(new FileOutputStream(options.valueOf(logO)));
-            hookStdOut(ln -> {
-                out.println(ln);
-                log.println(ln);
-            });
-        } else {
-            hookStdOut(System.out::println);
+            PrintStream file = new PrintStream(new FileOutputStream(options.valueOf(logO)));
+            log = ln -> {
+                if (!ln.isEmpty()) {
+                    out.println(ln);
+                    file.println(ln);
+                }
+            };
         }
 
-        log("Forge Auto Renaming Tool v" + getVersion());
+        log.accept("Forge Auto Renaming Tool v" + getVersion());
         Renamer.Builder builder = Renamer.builder();
+        builder.logger(log);
 
         // Move this up top so that the log lines are above the rest of the config as they can be spammy.
         // Its useful information but we care more about the specific configs.
         if (options.has(libO)) {
             for (File lib : options.valuesOf(libO)) {
-                log("lib: " + lib.getAbsolutePath());
+                log.accept("lib: " + lib.getAbsolutePath());
                 builder.lib(lib);
             }
         }
 
-        log("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
+        log.accept("log: " + (options.has(logO) ? options.valueOf(logO).getAbsolutePath() : "null"));
 
         File inputF = options.valueOf(inputO);
-        log("input: " + inputF.getAbsolutePath());
+        log.accept("input: " + inputF.getAbsolutePath());
         builder.input(inputF);
 
         File outputF = options.has(outputO) ? options.valueOf(outputO) : inputF;
-        log("output: " + outputF.getAbsolutePath());
+        log.accept("output: " + outputF.getAbsolutePath());
         builder.output(outputF);
 
-        log("threads: " + options.valueOf(threadsO));
+        log.accept("threads: " + options.valueOf(threadsO));
         builder.threads(options.valueOf(threadsO));
 
         // Map is optional so that we can run other fixes without renaming.
         // This does mean that it's not strictly a 'renaming' tool but screw it I like the name.
         if (options.has(mapO)) {
             File mapF = options.valueOf(mapO);
-            log("Names: " + mapF.getAbsolutePath());
+            log.accept("Names: " + mapF.getAbsolutePath());
             builder.map(mapF);
         } else {
-            log("Names: null");
+            log.accept("Names: null");
         }
 
         if (options.has(fixAnnO)) {
-            log("Fix Annotations: true");
-            builder.add(Transformer.createParameterAnnotationFixer());
+            log.accept("Fix Annotations: true");
+            builder.add(Transformer.parameterAnnotationFixerFactory());
         } else {
-            log("Fix Annotations: false");
+            log.accept("Fix Annotations: false");
         }
 
         if (options.has(fixRecordsO)) {
-            log("Fix Records: true");
-            builder.add(Transformer.createRecordFixer());
+            log.accept("Fix Records: true");
+            builder.add(Transformer.recordFixerFactory());
         } else {
-            log("Fix Records: false");
+            log.accept("Fix Records: false");
         }
 
         if (options.has(fixIdsO)) {
-            log("Fix Identifiers: " + options.valueOf(fixIdsO));
+            log.accept("Fix Identifiers: " + options.valueOf(fixIdsO));
             builder.add(Transformer.createIdentifierFixer(options.valueOf(fixIdsO)));
         } else {
-            log("Fix Identifiers: false");
+            log.accept("Fix Identifiers: false");
         }
 
         if (options.has(fixSrcO)) {
-            log("Fix SourceFile: " + options.valueOf(fixSrcO));
-            builder.add(Transformer.createSourceFixer(options.valueOf(fixSrcO)));
+            log.accept("Fix SourceFile: " + options.valueOf(fixSrcO));
+            builder.add(Transformer.sourceFixerFactory(options.valueOf(fixSrcO)));
         } else {
-            log("Fix SourceFile: false");
+            log.accept("Fix SourceFile: false");
         }
 
         if (options.has(ffLinesO)) {
             File lines = options.valueOf(ffLinesO);
-            log("Fix Line Numbers: " + lines.getAbsolutePath());
-            builder.add(Transformer.createFernFlowerLineFixer(lines));
+            log.accept("Fix Line Numbers: " + lines.getAbsolutePath());
+            builder.add(Transformer.fernFlowerLineFixerFactory(lines));
         } else {
-            log("Fix Line Numbers: false");
+            log.accept("Fix Line Numbers: false");
         }
 
         Renamer renamer = builder.build();
         renamer.run();
-    }
-
-    private static void log(String line) {
-        System.out.println(line);
     }
 
     private static String[] expandArgs(String[] args) throws IOException {
@@ -169,80 +170,6 @@ public class Main {
     private static String getVersion() {
         final String ver = Main.class.getPackage().getImplementationVersion();
         return ver == null ? "UNKNOWN" : ver;
-    }
-
-    static void hookStdOut(final Consumer<String> consumer) {
-        final OutputStream monitorStream = new OutputStream() {
-            private byte[] buf = new byte[128];
-            private int index = 0;
-
-            private void ensure(int len) {
-                if (buf.length <= len) {
-                    byte[] old = buf;
-                    int max = buf.length << 1;
-                    while (max > 0 && max < len) {
-                        max += 1024;
-                    }
-                    if (max < 0)
-                        throw new OutOfMemoryError();
-                    buf = Arrays.copyOf(old, max);
-                }
-            }
-
-            private void send() {
-                if (index == 0)
-                    return; // TODO: Detect and support multiple empty lines?
-                String line = new String(buf, 0, index);
-                buf = new byte[128];
-                index = 0;
-                consumer.accept(line);
-            }
-
-            @Override
-            public synchronized void write(int b) {
-                if (b == '\r' || b == '\n') {
-                    send();
-                } else {
-                    ensure(index + 1);
-                    buf[index++] = (byte)b;
-                }
-            }
-
-            @Override
-            public synchronized void write(byte b[], int off, int len) {
-                if (off < 0 || len < 0 || off > b.length || (off + len) >= b.length)
-                    throw new IndexOutOfBoundsException();
-
-                while (len > 0) {
-                    int x = 0;
-                    for (; x < len; x++) {
-                        byte i = b[off + x];
-                        if (i == '\r' || i == '\n')
-                            break;
-                    }
-                    ensure(index + x);
-                    System.arraycopy(b, off, buf, index, x);
-                    index += x;
-
-                    if (x != len) {
-                        send();
-                        x++; //Skip this char
-                        len -= x;
-                        off += x;
-                        if (b[off - 1] == '\r' && b[off] == '\n') {
-                            len--;
-                            off++;
-                        }
-                    } else {
-                        off += len;
-                        len = 0;
-                    }
-                }
-            }
-        };
-
-        System.setOut(new PrintStream(monitorStream));
-        System.setErr(new PrintStream(monitorStream));
     }
 
     private static class IDConverter implements ValueConverter<IdentifierFixerConfig> {

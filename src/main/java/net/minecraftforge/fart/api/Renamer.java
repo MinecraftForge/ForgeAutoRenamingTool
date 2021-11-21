@@ -20,6 +20,7 @@
 package net.minecraftforge.fart.api;
 
 import java.io.File;
+import java.util.function.Consumer;
 
 import net.minecraftforge.fart.internal.RenamerBuilder;
 
@@ -36,7 +37,10 @@ public interface Renamer {
         Builder lib(File value);
         Builder map(File value);
         Builder add(Transformer value);
+        Builder add(Transformer.Factory factory);
         Builder threads(int value);
+        Builder logger(Consumer<String> out);
+        Builder debug(Consumer<String> debug);
         Renamer build();
     }
 }

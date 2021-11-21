@@ -23,6 +23,8 @@ import static org.objectweb.asm.Opcodes.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -35,9 +37,12 @@ import org.objectweb.asm.tree.MethodNode;
 import net.minecraftforge.fart.api.Transformer;
 
 public final class ParameterAnnotationFixer implements Transformer {
-    public static final ParameterAnnotationFixer INSTANCE = new ParameterAnnotationFixer();
+    private final Consumer<String> log;
+    private final Consumer<String> debug;
 
-    private ParameterAnnotationFixer() {
+    public ParameterAnnotationFixer(Consumer<String> log, Consumer<String> debug) {
+        this.log = log;
+        this.debug = debug;
     }
 
     @Override
@@ -50,7 +55,7 @@ public final class ParameterAnnotationFixer implements Transformer {
         return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
     }
 
-    private static class Visitor extends ClassVisitor {
+    private class Visitor extends ClassVisitor {
         private final ClassNode node;
 
         public Visitor(ClassNode cn) {
@@ -59,11 +64,11 @@ public final class ParameterAnnotationFixer implements Transformer {
         }
 
         private void debug(String message) {
-            //System.out.println(message);
+            debug.accept(message);
         }
 
         private void log(String message) {
-            System.out.println(message);
+            log.accept(message);
         }
 
         @Override

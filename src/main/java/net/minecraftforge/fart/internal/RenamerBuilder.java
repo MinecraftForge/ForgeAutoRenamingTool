@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import net.minecraftforge.fart.api.Inheritance;
 import net.minecraftforge.fart.api.Renamer;
@@ -30,13 +31,16 @@ import net.minecraftforge.fart.api.Renamer.Builder;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.srgutils.IMappingFile;
 
+import static java.util.Objects.requireNonNull;
+
 public class RenamerBuilder implements Builder {
-    private final Inheritance inh = Inheritance.create();
     private File input;
     private File output;
-    private List<File> libraries = new ArrayList<>();
-    private List<Transformer> transformers = new ArrayList<>();
+    private final List<File> libraries = new ArrayList<>();
+    private final List<Transformer.Factory> transformerFactories = new ArrayList<>();
     private int threads = Runtime.getRuntime().availableProcessors();
+    private Consumer<String> logger = System.out::println;
+    private Consumer<String> debug = s -> {};
 
     @Override
     public Builder input(File value) {
@@ -59,7 +63,7 @@ public class RenamerBuilder implements Builder {
     @Override
     public Builder map(File value) {
         try {
-            add(Transformer.createRenamer(inh, IMappingFile.load(value)));
+            add(Transformer.renamerFactory(IMappingFile.load(value)));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -68,7 +72,13 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Builder add(Transformer value) {
-        this.transformers.add(value);
+        this.transformerFactories.add(Transformer.Factory.always(requireNonNull(value, "value")));
+        return this;
+    }
+
+    @Override
+    public Builder add(Transformer.Factory factory) {
+        this.transformerFactories.add(requireNonNull(factory, "factory"));
         return this;
     }
 
@@ -79,7 +89,41 @@ public class RenamerBuilder implements Builder {
     }
 
     @Override
+    public Builder logger(Consumer<String> out) {
+        this.logger = requireNonNull(out, "out");
+        return this;
+    }
+
+    @Override
+    public Builder debug(Consumer<String> debug) {
+        this.debug = requireNonNull(debug, "debug");
+        return this;
+    }
+
+    @Override
     public Renamer build() {
-        return new RenamerImpl(input, output, libraries, transformers, inh, threads);
+        Inheritance inh = Inheritance.create(this.logger);
+        final Transformer.Context ctx = new Transformer.Context() {
+            @Override
+            public Consumer<String> getLog() {
+                return logger;
+            }
+
+            @Override
+            public Consumer<String> getDebug() {
+                return debug;
+            }
+
+            @Override
+            public Inheritance getInheritance() {
+                return inh;
+            }
+        };
+
+        final List<Transformer> transformers = new ArrayList<>(transformerFactories.size());
+        for (Transformer.Factory factory : transformerFactories) {
+            transformers.add(requireNonNull(factory.create(ctx), "output of " + factory));
+        }
+        return new RenamerImpl(input, output, libraries, transformers, inh, threads, logger, debug);
     }
 }
