@@ -19,11 +19,17 @@
 
 package net.minecraftforge.fart.api;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 
+import net.minecraftforge.fart.internal.FFLineFixer;
+import net.minecraftforge.fart.internal.IdentifierFixer;
+import net.minecraftforge.fart.internal.ParameterAnnotationFixer;
 import net.minecraftforge.fart.internal.EntryImpl;
+import net.minecraftforge.fart.internal.RecordFixer;
 import net.minecraftforge.fart.internal.RenamingTransformer;
+import net.minecraftforge.fart.internal.SourceFixer;
 import net.minecraftforge.srgutils.IMappingFile;
 
 public interface Transformer {
@@ -40,8 +46,65 @@ public interface Transformer {
         return Collections.emptyList();
     }
 
+    /**
+     * Create a transformer that applies mappings as a transformation.
+     *
+     * @param inh inheritance information, including remapping classpath
+     * @param map the mapping information to remap with
+     * @return a renaming transformer
+     */
     public static Transformer createRenamer(Inheritance inh, IMappingFile map) {
         return new RenamingTransformer(inh, map);
+    }
+
+    /**
+     * Create a transformer that renames any local variables that are not valid java identifiers.
+     *
+     * @param config option for which local variables to rename
+     * @return an identifier-fixing transformer
+     */
+    public static Transformer createIdentifierFixer(final IdentifierFixerConfig config) {
+        return new IdentifierFixer(config);
+    }
+
+    /**
+     * Create a transformer that fixes misaligned parameter annotations caused by Proguard.
+     *
+     * @return a parameter annotation-fixing transformer
+     */
+    public static Transformer createParameterAnnotationFixer() {
+        return ParameterAnnotationFixer.INSTANCE;
+    }
+
+    /**
+     * Create a transformer that applies line number corrections from Fernflower.
+     *
+     * @param sourceJar the source jar
+     * @return a transformer that applies line number information
+     */
+    public static Transformer createFernFlowerLineFixer(File sourceJar) {
+        return new FFLineFixer(sourceJar);
+    }
+
+    /**
+     * Create a transformer that restores record component data stripped by ProGuard.
+     *
+     * @return a transformer that fixes record class metadata
+     */
+    public static Transformer createRecordFixer() {
+        return RecordFixer.INSTANCE;
+    }
+
+    /**
+     * Create a transformer that fixes the {@code SourceFile} attribute of classes.
+     *
+     * This attempts to infer a file name based on the supplied language information.
+     *
+     * @param config the method to use to generate a source file name.
+     * @return a transformer that fixes {@code SourceFile} information
+     */
+    public static Transformer createSourceFixer(SourceFixerConfig config) {
+        return new SourceFixer(config);
     }
 
     public interface Entry {

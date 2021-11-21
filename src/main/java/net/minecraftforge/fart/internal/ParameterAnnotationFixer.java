@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import static org.objectweb.asm.Opcodes.*;
 
@@ -34,7 +34,12 @@ import org.objectweb.asm.tree.MethodNode;
 
 import net.minecraftforge.fart.api.Transformer;
 
-public class ParameterAnnotationFixer implements Transformer {
+public final class ParameterAnnotationFixer implements Transformer {
+    public static final ParameterAnnotationFixer INSTANCE = new ParameterAnnotationFixer();
+
+    private ParameterAnnotationFixer() {
+    }
+
     @Override
     public ClassEntry process(ClassEntry entry) {
         final ClassReader reader = new ClassReader(entry.getData());
@@ -49,7 +54,7 @@ public class ParameterAnnotationFixer implements Transformer {
         private final ClassNode node;
 
         public Visitor(ClassNode cn) {
-            super(Main.MAX_ASM_VERSION, cn);
+            super(RenamerImpl.MAX_ASM_VERSION, cn);
             this.node = cn;
         }
 

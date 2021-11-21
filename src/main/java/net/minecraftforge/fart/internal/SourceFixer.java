@@ -17,27 +17,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
+import net.minecraftforge.fart.api.SourceFixerConfig;
 import org.objectweb.asm.ClassVisitor;
 
-public class SourceFixer extends OptionalChangeTransformer {
-    enum Config {
-        // Uses java style Source file names, this means inner classes get the parent, and it uses a .java extension.
-        JAVA;
-        // If people care they can PR scala/kotlin/groovy, or map based support
-    }
+public final class SourceFixer extends OptionalChangeTransformer {
 
-    SourceFixer(Config config) {
+    public SourceFixer(SourceFixerConfig config) {
         super(parent -> new Fixer(config, parent));
     }
 
     private static class Fixer extends ClassFixer {
-        private final Config config;
+        private final SourceFixerConfig config;
         private String className = null;
         private boolean hadEntry = false;
 
-        public Fixer(Config config, ClassVisitor parent) {
+        public Fixer(SourceFixerConfig config, ClassVisitor parent) {
             super(parent);
             this.config = config;
         }
@@ -60,7 +56,7 @@ public class SourceFixer extends OptionalChangeTransformer {
 
         private String getSourceName(String existing) {
             String name = className;
-            if (config == Config.JAVA) {
+            if (config == SourceFixerConfig.JAVA) {
                 int idx = name.lastIndexOf('/');
                 if (idx != -1)
                     name = name.substring(idx + 1);

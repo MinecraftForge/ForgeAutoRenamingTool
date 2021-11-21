@@ -33,16 +33,16 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.objectweb.asm.Opcodes;
-
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import joptsimple.ValueConverter;
+import net.minecraftforge.fart.api.IdentifierFixerConfig;
 import net.minecraftforge.fart.api.Renamer;
+import net.minecraftforge.fart.api.SourceFixerConfig;
+import net.minecraftforge.fart.api.Transformer;
 
 public class Main {
-    static final int MAX_ASM_VERSION = Opcodes.ASM9;
     public static void main(String[] args) throws IOException {
         OptionParser parser = new OptionParser();
         OptionSpec<File> inputO  = parser.accepts("input",  "Input jar file").withRequiredArg().ofType(File.class).required();
@@ -52,8 +52,8 @@ public class Main {
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
         OptionSpec<Void> fixRecordsO = parser.accepts("record-fix", "Fixes record component data stripped by Proguard.");
-        OptionSpec<IdentifierFixer.Config> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixer.Config.ALL);
-        OptionSpec<SourceFixer.Config> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixer.Config.JAVA);
+        OptionSpec<IdentifierFixerConfig> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixerConfig.ALL);
+        OptionSpec<SourceFixerConfig> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixerConfig.JAVA);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSet options = parser.parse(expandArgs(args));
@@ -106,28 +106,28 @@ public class Main {
 
         if (options.has(fixAnnO)) {
             log("Fix Annotations: true");
-            builder.add(new ParameterAnnotationFixer());
+            builder.add(Transformer.createParameterAnnotationFixer());
         } else {
             log("Fix Annotations: false");
         }
 
         if (options.has(fixRecordsO)) {
             log("Fix Records: true");
-            builder.add(new RecordFixer());
+            builder.add(Transformer.createRecordFixer());
         } else {
             log("Fix Records: false");
         }
 
         if (options.has(fixIdsO)) {
             log("Fix Identifiers: " + options.valueOf(fixIdsO));
-            builder.add(new IdentifierFixer(options.valueOf(fixIdsO)));
+            builder.add(Transformer.createIdentifierFixer(options.valueOf(fixIdsO)));
         } else {
             log("Fix Identifiers: false");
         }
 
         if (options.has(fixSrcO)) {
             log("Fix SourceFile: " + options.valueOf(fixSrcO));
-            builder.add(new SourceFixer(options.valueOf(fixSrcO)));
+            builder.add(Transformer.createSourceFixer(options.valueOf(fixSrcO)));
         } else {
             log("Fix SourceFile: false");
         }
@@ -135,7 +135,7 @@ public class Main {
         if (options.has(ffLinesO)) {
             File lines = options.valueOf(ffLinesO);
             log("Fix Line Numbers: " + lines.getAbsolutePath());
-            builder.add(new FFLineFixer(lines));
+            builder.add(Transformer.createFernFlowerLineFixer(lines));
         } else {
             log("Fix Line Numbers: false");
         }
@@ -245,37 +245,37 @@ public class Main {
         System.setErr(new PrintStream(monitorStream));
     }
 
-    private static class IDConverter implements ValueConverter<IdentifierFixer.Config> {
+    private static class IDConverter implements ValueConverter<IdentifierFixerConfig> {
         @Override
-        public IdentifierFixer.Config convert(String value) {
-            return IdentifierFixer.Config.valueOf(value.toUpperCase(Locale.ENGLISH));
+        public IdentifierFixerConfig convert(String value) {
+            return IdentifierFixerConfig.valueOf(value.toUpperCase(Locale.ENGLISH));
         }
 
         @Override
-        public Class<? extends IdentifierFixer.Config> valueType() {
-            return IdentifierFixer.Config.class;
+        public Class<? extends IdentifierFixerConfig> valueType() {
+            return IdentifierFixerConfig.class;
         }
 
         @Override
         public String valuePattern() {
-            return Arrays.stream(IdentifierFixer.Config.values()).map(Enum::name).collect(Collectors.joining("|"));
+            return Arrays.stream(IdentifierFixerConfig.values()).map(Enum::name).collect(Collectors.joining("|"));
         }
     }
 
-    private static class SrcConverter implements ValueConverter<SourceFixer.Config> {
+    private static class SrcConverter implements ValueConverter<SourceFixerConfig> {
         @Override
-        public SourceFixer.Config convert(String value) {
-            return SourceFixer.Config.valueOf(value.toUpperCase(Locale.ENGLISH));
+        public SourceFixerConfig convert(String value) {
+            return SourceFixerConfig.valueOf(value.toUpperCase(Locale.ENGLISH));
         }
 
         @Override
-        public Class<? extends SourceFixer.Config> valueType() {
-            return SourceFixer.Config.class;
+        public Class<? extends SourceFixerConfig> valueType() {
+            return SourceFixerConfig.class;
         }
 
         @Override
         public String valuePattern() {
-            return Arrays.stream(SourceFixer.Config.values()).map(Enum::name).collect(Collectors.joining("|"));
+            return Arrays.stream(SourceFixerConfig.values()).map(Enum::name).collect(Collectors.joining("|"));
         }
     }
 }

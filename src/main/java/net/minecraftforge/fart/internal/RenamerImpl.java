@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+import org.objectweb.asm.Opcodes;
 
 import net.minecraftforge.fart.api.Inheritance;
 import net.minecraftforge.fart.api.Renamer;
@@ -42,6 +43,7 @@ import net.minecraftforge.fart.api.Transformer.ManifestEntry;
 import net.minecraftforge.fart.api.Transformer.ResourceEntry;
 
 class RenamerImpl implements Renamer {
+    static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
     private final File input;
     private final File output;

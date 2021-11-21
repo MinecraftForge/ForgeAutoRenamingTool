@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,8 +27,10 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.RecordComponentVisitor;
 
-class RecordFixer extends OptionalChangeTransformer {
-    protected RecordFixer() {
+public class RecordFixer extends OptionalChangeTransformer {
+    public static final RecordFixer INSTANCE = new RecordFixer();
+
+    private RecordFixer() {
         super(Fixer::new);
     }
 

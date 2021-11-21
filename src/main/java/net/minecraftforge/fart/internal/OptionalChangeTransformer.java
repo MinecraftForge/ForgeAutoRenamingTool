@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import net.minecraftforge.fart.api.Transformer;
 import org.objectweb.asm.ClassReader;
@@ -51,7 +51,7 @@ abstract class OptionalChangeTransformer implements Transformer {
         protected boolean madeChange = false;
 
         protected ClassFixer(ClassVisitor parent) {
-            this(Main.MAX_ASM_VERSION, parent);
+            this(RenamerImpl.MAX_ASM_VERSION, parent);
         }
 
         protected ClassFixer(int api, ClassVisitor classVisitor) {
