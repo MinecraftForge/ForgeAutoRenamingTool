@@ -78,8 +78,8 @@ public interface Transformer {
      * @param config option for which local variables to rename
      * @return an identifier-fixing transformer
      */
-    public static Transformer createIdentifierFixer(final IdentifierFixerConfig config) {
-        return new IdentifierFixer(config);
+    public static Factory identifierFixerFactory(final IdentifierFixerConfig config) {
+        return ctx -> new IdentifierFixer(config);
     }
 
     /**

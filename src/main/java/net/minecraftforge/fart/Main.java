@@ -125,7 +125,7 @@ public class Main {
 
         if (options.has(fixIdsO)) {
             log.accept("Fix Identifiers: " + options.valueOf(fixIdsO));
-            builder.add(Transformer.createIdentifierFixer(options.valueOf(fixIdsO)));
+            builder.add(Transformer.identifierFixerFactory(options.valueOf(fixIdsO)));
         } else {
             log.accept("Fix Identifiers: false");
         }

@@ -20,7 +20,7 @@
 package net.minecraftforge.fart.api;
 
 /**
- * Identifier transformation strategy for {@link Transformer#createIdentifierFixer(IdentifierFixerConfig)}.
+ * Identifier transformation strategy for {@link Transformer#identifierFixerFactory(IdentifierFixerConfig)}.
  */
 public enum IdentifierFixerConfig {
     /**
