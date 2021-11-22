@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,16 +75,24 @@ public class RenamingTransformer implements Transformer {
     @Override
     public ManifestEntry process(ManifestEntry entry) {
         // Remove all signature entries
+        // see signed jar spec: https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#Signed_JAR_File
         try {
             final Manifest manifest = new Manifest(new ByteArrayInputStream(entry.getData()));
             boolean found = false;
             for (final Iterator<Map.Entry<String, Attributes>> it = manifest.getEntries().entrySet().iterator(); it.hasNext();) {
                 final Map.Entry<String, Attributes> section = it.next();
-                if (section.getValue().remove(SHA_256_DIGEST) != null) {
-                    if (section.getValue().isEmpty()) {
-                        it.remove();
+                for (final Iterator<Map.Entry<Object, Object>> attrIter = section.getValue().entrySet().iterator(); attrIter.hasNext();) {
+                    final Map.Entry<Object, Object> attribute = attrIter.next();
+                    final String key = attribute.getKey().toString().toLowerCase(Locale.ROOT); // spec says this is case-insensitive
+                    if (key.endsWith("-digest")) { // assume that this is a signature entry
+                        attrIter.remove();
+                        found = true;
                     }
-                    found = true;
+                    // keep going even if we've found an attribute -- multiple hash formats can be specified for each file
+                }
+
+                if (section.getValue().isEmpty()) {
+                    it.remove();
                 }
             }
             if (found) {
@@ -102,9 +111,13 @@ public class RenamingTransformer implements Transformer {
     public ResourceEntry process(ResourceEntry entry) {
         if (ABSTRACT_FILE.equals(entry.getName()))
             return null;
+
+        // Signature metadata
         if (entry.getName().startsWith("META-INF/")) {
             if (entry.getName().endsWith(".RSA")
-                    || entry.getName().endsWith(".SF")) {
+                    || entry.getName().endsWith(".SF")
+                    || entry.getName().endsWith(".DSA")
+                    || entry.getName().endsWith(".EC")) { // supported by InstallerRewriter but not referenced in the spec
                 return null;
             }
         }
