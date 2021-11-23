@@ -376,7 +376,7 @@ class EnhancedRemapper extends Remapper {
                 this.mmtd = mmtd;
                 if (mmtd != null && !mmtd.getDescriptor().contains("()")) {
                     List<String> tmp = new ArrayList<>();
-                    if (!mmtd.getMetadata().containsKey("is_static"))
+                    if ((imtd.getAccess() & ACC_STATIC) == 0)
                         tmp.add("this");
 
                     Type[] args = Type.getArgumentTypes(mmtd.getDescriptor());
