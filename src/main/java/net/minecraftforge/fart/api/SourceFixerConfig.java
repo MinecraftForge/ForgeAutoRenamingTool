@@ -20,7 +20,7 @@
 package net.minecraftforge.fart.api;
 
 /**
- * Source file naming strategy for {@link Transformer#createSourceFixer(SourceFixerConfig)}.
+ * Source file naming strategy for {@link Transformer#sourceFixerFactory(SourceFixerConfig)}.
  */
 public enum SourceFixerConfig {
     // Uses java style Source file names, this means inner classes get the parent, and it uses a .java extension.
