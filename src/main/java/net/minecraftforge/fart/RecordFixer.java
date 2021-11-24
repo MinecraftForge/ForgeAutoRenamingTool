@@ -59,7 +59,11 @@ class RecordFixer extends OptionalChangeTransformer {
             // These fields still need to have record components generated, so we need to ignore ACC_PRIVATE.
             if (isRecord && (access & (Opcodes.ACC_FINAL | Opcodes.ACC_STATIC)) == Opcodes.ACC_FINAL) {
                 // Make sure the visibility gets set back to private
-                access = access & ~(Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PRIVATE;
+                int newAccess = access & ~(Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED) | Opcodes.ACC_PRIVATE;
+                if (newAccess != access) {
+                    this.madeChange = true;
+                    access = newAccess;
+                }
                 // Manually add the record component back if this class doesn't have any
                 if (components == null)
                     components = new LinkedHashMap<String, Entry>();
