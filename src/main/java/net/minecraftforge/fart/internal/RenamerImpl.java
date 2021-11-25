@@ -112,13 +112,13 @@ class RenamerImpl implements Renamer {
 
             // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
             logger.accept("Adding input to inheritence map");
-            async.consumeAll(ourClasses, c ->
+            async.consumeAll(ourClasses, ClassEntry::getClassName, c ->
                 inh.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
             );
 
             // Process everything
             logger.accept("Processing entries");
-            List<Entry> newEntries = async.invokeAll(oldEntries, this::processEntry);
+            List<Entry> newEntries = async.invokeAll(oldEntries, Entry::getName, this::processEntry);
 
             logger.accept("Adding extras");
             transformers.stream().forEach(t -> newEntries.addAll(t.getExtras()));
