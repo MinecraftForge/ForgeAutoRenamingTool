@@ -62,14 +62,10 @@ public class RenamingTransformer implements Transformer {
     }
 
     @Override
-    public ManifestEntry process(ManifestEntry entry) {
-        return entry;
-    }
-
-    @Override
     public ResourceEntry process(ResourceEntry entry) {
         if (ABSTRACT_FILE.equals(entry.getName()))
             return null;
+
         return entry;
     }
 

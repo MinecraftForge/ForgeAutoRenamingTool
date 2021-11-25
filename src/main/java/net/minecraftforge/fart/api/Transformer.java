@@ -30,6 +30,7 @@ import net.minecraftforge.fart.internal.ParameterAnnotationFixer;
 import net.minecraftforge.fart.internal.EntryImpl;
 import net.minecraftforge.fart.internal.RecordFixer;
 import net.minecraftforge.fart.internal.RenamingTransformer;
+import net.minecraftforge.fart.internal.SignatureStripperTransformer;
 import net.minecraftforge.fart.internal.SourceFixer;
 import net.minecraftforge.srgutils.IMappingFile;
 
@@ -120,6 +121,16 @@ public interface Transformer {
      */
     public static Factory sourceFixerFactory(SourceFixerConfig config) {
         return ctx -> new SourceFixer(config);
+    }
+
+    /**
+     * Create a transformer that strips invalid code signing signatures from a manifest.
+     *
+     * @param config the variants of signatures to strip
+     * @return a factory for a transformer that strips signatures
+     */
+    public static Factory signatureStripperFactory(SignatureStripperConfig config) {
+        return ctx -> new SignatureStripperTransformer(ctx.getLog(), config);
     }
 
     public interface Entry {

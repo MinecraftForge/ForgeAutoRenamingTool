@@ -28,16 +28,15 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
+import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import joptsimple.ValueConverter;
 import net.minecraftforge.fart.api.IdentifierFixerConfig;
 import net.minecraftforge.fart.api.Renamer;
+import net.minecraftforge.fart.api.SignatureStripperConfig;
 import net.minecraftforge.fart.api.SourceFixerConfig;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.srgutils.IMappingFile;
@@ -52,12 +51,22 @@ public class Main {
         OptionSpec<File> libO    = parser.acceptsAll(Arrays.asList("lib", "e"), "Additional library to use for inheritence").withRequiredArg().ofType(File.class);
         OptionSpec<Void> fixAnnO = parser.accepts("ann-fix", "Fixes misaligned parameter annotations caused by Proguard.");
         OptionSpec<Void> fixRecordsO = parser.accepts("record-fix", "Fixes record component data stripped by Proguard.");
-        OptionSpec<IdentifierFixerConfig> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new IDConverter()).defaultsTo(IdentifierFixerConfig.ALL);
-        OptionSpec<SourceFixerConfig> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixerConfig.JAVA);
+        OptionSpec<IdentifierFixerConfig> fixIdsO = parser.accepts("ids-fix", "Fixes local variables that are not valid java identifiers.").withOptionalArg().withValuesConvertedBy(new EnumConverter<>(IdentifierFixerConfig.class)).defaultsTo(IdentifierFixerConfig.ALL);
+        OptionSpec<SourceFixerConfig> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new EnumConverter<>(SourceFixerConfig.class)).defaultsTo(SourceFixerConfig.JAVA);
+        OptionSpec<SignatureStripperConfig> stripSigsO = parser.accepts("strip-sigs", "Strip invalid codesigning signatures from the Jar manifest").withOptionalArg().withValuesConvertedBy(new EnumConverter<>(SignatureStripperConfig.class)).defaultsTo(SignatureStripperConfig.ALL);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSpec<Void> reverseO = parser.accepts("reverse", "Reverse provided mapping file before applying");
-        OptionSet options = parser.parse(expandArgs(args));
+        OptionSet options;
+        try {
+            options = parser.parse(expandArgs(args));
+        } catch (OptionException ex) {
+            System.err.println("Error: " + ex.getMessage());
+            System.err.println();
+            parser.printHelpOn(System.err);
+            System.exit(1);
+            return;
+        }
 
         Consumer<String> log = ln -> {
             if (!ln.isEmpty()) {
@@ -152,6 +161,14 @@ public class Main {
             log.accept("Fix Line Numbers: false");
         }
 
+        if (options.has(stripSigsO)) {
+            SignatureStripperConfig config = options.valueOf(stripSigsO);
+            log.accept("Strip codesigning signatures: " + config);
+            builder.add(Transformer.signatureStripperFactory(config));
+        } else {
+            log.accept("Strip codesigning signatures: false");
+        }
+
         Renamer renamer = builder.build();
         renamer.run();
     }
@@ -179,37 +196,9 @@ public class Main {
         return ver == null ? "UNKNOWN" : ver;
     }
 
-    private static class IDConverter implements ValueConverter<IdentifierFixerConfig> {
-        @Override
-        public IdentifierFixerConfig convert(String value) {
-            return IdentifierFixerConfig.valueOf(value.toUpperCase(Locale.ENGLISH));
-        }
-
-        @Override
-        public Class<? extends IdentifierFixerConfig> valueType() {
-            return IdentifierFixerConfig.class;
-        }
-
-        @Override
-        public String valuePattern() {
-            return Arrays.stream(IdentifierFixerConfig.values()).map(Enum::name).collect(Collectors.joining("|"));
-        }
-    }
-
-    private static class SrcConverter implements ValueConverter<SourceFixerConfig> {
-        @Override
-        public SourceFixerConfig convert(String value) {
-            return SourceFixerConfig.valueOf(value.toUpperCase(Locale.ENGLISH));
-        }
-
-        @Override
-        public Class<? extends SourceFixerConfig> valueType() {
-            return SourceFixerConfig.class;
-        }
-
-        @Override
-        public String valuePattern() {
-            return Arrays.stream(SourceFixerConfig.values()).map(Enum::name).collect(Collectors.joining("|"));
+    private static class EnumConverter<T extends Enum<T>> extends joptsimple.util.EnumConverter<T> {
+        private EnumConverter(Class<T> enumClazz) {
+            super(enumClazz);
         }
     }
 }
