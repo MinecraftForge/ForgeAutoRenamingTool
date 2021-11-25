@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -37,10 +38,10 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import net.minecraftforge.fart.api.Transformer;
 
-class FFLineFixer implements Transformer {
-    private Map<String, NavigableMap<Integer, Integer>> classes = new HashMap<>();
+public final class FFLineFixer implements Transformer {
+    private final Map<String, NavigableMap<Integer, Integer>> classes = new HashMap<>();
 
-    FFLineFixer(File data) {
+    public FFLineFixer(Consumer<String> debug, File data) {
         try (FileInputStream fis = new FileInputStream(data);
             ZipInputStream zip = new ZipInputStream(fis)) {
             ZipEntry entry = null;
@@ -57,7 +58,7 @@ class FFLineFixer implements Transformer {
                     short len = buf.getShort();
                     if (id == 0x4646) { //FF
                         String cls = entry.getName().substring(0, entry.getName().length() - 5);
-                        log("Lines: " + cls);
+                        debug.accept("Lines: " + cls);
                         int ver = buf.get();
                         if (ver != 1)
                             throw new IllegalStateException("Invalid FF code line version for " + entry.getName());
@@ -66,7 +67,7 @@ class FFLineFixer implements Transformer {
                         for (int x = 0; x < count; x++) {
                             int oline = buf.getShort();
                             int nline = buf.getShort();
-                            log("  " + oline + ' ' + nline);
+                            debug.accept("  " + oline + ' ' + nline);
                             lines.put(oline, nline);
                         }
                         classes.put(cls, lines);
@@ -78,10 +79,6 @@ class FFLineFixer implements Transformer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private static void log(String line) {
-        //System.out.println(line);
     }
 
     @Override
@@ -107,12 +104,12 @@ class FFLineFixer implements Transformer {
         return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
     }
 
-    private class Fixer extends ClassVisitor {
+    private static class Fixer extends ClassVisitor {
         private final NavigableMap<Integer, Integer> lines;
         private boolean madeChange = false;
 
         public Fixer(ClassVisitor parent, NavigableMap<Integer, Integer> lines) {
-            super(Main.MAX_ASM_VERSION, parent);
+            super(RenamerImpl.MAX_ASM_VERSION, parent);
             this.lines = lines;
         }
 
@@ -123,7 +120,7 @@ class FFLineFixer implements Transformer {
         @Override
         public final MethodVisitor visitMethod(final int access, final String name, final String descriptor, final String signature, final String[] exceptions) {
             MethodVisitor parent = super.visitMethod(access, name, descriptor, signature, exceptions);
-            return new MethodVisitor(Main.MAX_ASM_VERSION, parent) {
+            return new MethodVisitor(RenamerImpl.MAX_ASM_VERSION, parent) {
                 @Override
                 public void visitLineNumber(final int line, final Label start) {
                     Map.Entry<Integer, Integer> nline = lines.higherEntry(line);

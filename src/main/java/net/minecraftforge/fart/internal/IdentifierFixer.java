@@ -17,35 +17,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.objectweb.asm.ClassReader;
+import net.minecraftforge.fart.api.IdentifierFixerConfig;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
-import net.minecraftforge.fart.api.Transformer;
-
-class IdentifierFixer extends OptionalChangeTransformer {
-    enum Config {
-        // Checks all Local variables if they are valid java identifiers.
-        ALL,
-        // Only replaces snowman character used by Minecraft
-        SNOWMEN;
-    }
-
-    IdentifierFixer(Config config) {
+public final class IdentifierFixer extends OptionalChangeTransformer {
+    public IdentifierFixer(IdentifierFixerConfig config) {
         super(parent -> new Fixer(config, parent));
     }
 
     private static class Fixer extends ClassFixer {
-        private final Config config;
+        private final IdentifierFixerConfig config;
 
-        public Fixer(Config config, ClassVisitor parent) {
+        public Fixer(IdentifierFixerConfig config, ClassVisitor parent) {
             super(parent);
             this.config = config;
         }
@@ -57,7 +47,7 @@ class IdentifierFixer extends OptionalChangeTransformer {
         @Override
         public final MethodVisitor visitMethod(final int access, final String name, final String descriptor, final String signature, final String[] exceptions) {
             MethodVisitor parent = super.visitMethod(access, name, descriptor, signature, exceptions);
-            return new MethodVisitor(Main.MAX_ASM_VERSION, parent) {
+            return new MethodVisitor(RenamerImpl.MAX_ASM_VERSION, parent) {
                 @Override
                 public void visitLocalVariable(final String pname, final String pdescriptor, final String psignature, final Label start, final Label end, final int index) {
                     String newName = fixName(pname, index);
@@ -69,7 +59,7 @@ class IdentifierFixer extends OptionalChangeTransformer {
                     boolean valid = true;
                     if (name.isEmpty()) {
                         valid = false;
-                    } else if (config == Config.SNOWMEN) {
+                    } else if (config == IdentifierFixerConfig.SNOWMEN) {
                         // Snowmen, added in 1.8.2? rename them names that can exist in source
                         if ((char)0x2603 == name.charAt(0))
                             valid = false;

@@ -19,28 +19,16 @@
 
 package net.minecraftforge.fart.api;
 
-import java.io.File;
-import java.util.function.Consumer;
-
-import net.minecraftforge.fart.internal.RenamerBuilder;
-
-public interface Renamer {
-    void run();
-
-    static Builder builder() {
-        return new RenamerBuilder();
-    }
-
-    public interface Builder {
-        Builder input(File value);
-        Builder output(File value);
-        Builder lib(File value);
-        Builder map(File value);
-        Builder add(Transformer value);
-        Builder add(Transformer.Factory factory);
-        Builder threads(int value);
-        Builder logger(Consumer<String> out);
-        Builder debug(Consumer<String> debug);
-        Renamer build();
-    }
+/**
+ * Identifier transformation strategy for {@link Transformer#identifierFixerFactory(IdentifierFixerConfig)}.
+ */
+public enum IdentifierFixerConfig {
+    /**
+     * Checks all Local variables if they are valid java identifiers.
+     */
+    ALL,
+    /**
+     * Only replaces snowman character used by Minecraft.
+     */
+    SNOWMEN;
 }

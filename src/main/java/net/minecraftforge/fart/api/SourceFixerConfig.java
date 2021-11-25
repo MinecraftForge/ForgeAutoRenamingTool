@@ -19,28 +19,11 @@
 
 package net.minecraftforge.fart.api;
 
-import java.io.File;
-import java.util.function.Consumer;
-
-import net.minecraftforge.fart.internal.RenamerBuilder;
-
-public interface Renamer {
-    void run();
-
-    static Builder builder() {
-        return new RenamerBuilder();
-    }
-
-    public interface Builder {
-        Builder input(File value);
-        Builder output(File value);
-        Builder lib(File value);
-        Builder map(File value);
-        Builder add(Transformer value);
-        Builder add(Transformer.Factory factory);
-        Builder threads(int value);
-        Builder logger(Consumer<String> out);
-        Builder debug(Consumer<String> debug);
-        Renamer build();
-    }
+/**
+ * Source file naming strategy for {@link Transformer#sourceFixerFactory(SourceFixerConfig)}.
+ */
+public enum SourceFixerConfig {
+    // Uses java style Source file names, this means inner classes get the parent, and it uses a .java extension.
+    JAVA;
+    // If people care they can PR scala/kotlin/groovy, or map based support
 }

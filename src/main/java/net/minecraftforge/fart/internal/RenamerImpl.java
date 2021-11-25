@@ -26,12 +26,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+import org.objectweb.asm.Opcodes;
 
 import net.minecraftforge.fart.api.Inheritance;
 import net.minecraftforge.fart.api.Renamer;
@@ -42,6 +43,7 @@ import net.minecraftforge.fart.api.Transformer.ManifestEntry;
 import net.minecraftforge.fart.api.Transformer.ResourceEntry;
 
 class RenamerImpl implements Renamer {
+    static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
     private final File input;
     private final File output;
@@ -49,25 +51,29 @@ class RenamerImpl implements Renamer {
     private final List<Transformer> transformers;
     private final Inheritance inh;
     private final int threads;
+    private final Consumer<String> logger;
+    private final Consumer<String> debug;
 
-    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads) {
+    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads, Consumer<String> logger, Consumer<String> debug) {
         this.input = input.getAbsoluteFile();
         this.output = output.getAbsoluteFile();
         this.libraries = libraries;
         this.transformers = transformers;
         this.inh = inh;
         this.threads = threads;
+        this.logger = logger;
+        this.debug = debug;
     }
 
     @Override
     public void run() {
-        log("Adding Libraries to Inheritance");
+        logger.accept("Adding Libraries to Inheritance");
         libraries.forEach(inh::addLibrary);
 
         if (!input.exists())
             throw new IllegalArgumentException("Input file not found: " + input.getAbsolutePath());
 
-        log("Reading Input: " + input.getAbsolutePath());
+        logger.accept("Reading Input: " + input.getAbsolutePath());
         // Read everything from the input jar!
         List<Entry> oldEntries = new ArrayList<>();
         try (ZipFile in = new ZipFile(input)) {
@@ -105,16 +111,16 @@ class RenamerImpl implements Renamer {
                 .collect(Collectors.toList());
 
             // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
-            log("Adding input to inheritence map");
+            logger.accept("Adding input to inheritence map");
             async.consumeAll(ourClasses, c ->
                 inh.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
             );
 
             // Process everything
-            log("Processing entries");
+            logger.accept("Processing entries");
             List<Entry> newEntries = async.invokeAll(oldEntries, this::processEntry);
 
-            log("Adding extras");
+            logger.accept("Adding extras");
             transformers.stream().forEach(t -> newEntries.addAll(t.getExtras()));
 
             Set<String> seen = new HashSet<>();
@@ -133,14 +139,14 @@ class RenamerImpl implements Renamer {
             */
 
             // We care about stable output, so sort, and single thread write.
-            log("Sorting");
+            logger.accept("Sorting");
             Collections.sort(newEntries, this::compare);
 
             if (!output.getParentFile().exists())
                 output.getParentFile().mkdirs();
 
             seen.clear();
-            log("Writing Output: " + output.getAbsolutePath());
+            logger.accept("Writing Output: " + output.getAbsolutePath());
             try (FileOutputStream fos = new FileOutputStream(output);
                 ZipOutputStream zos = new ZipOutputStream(fos)) {
 
@@ -150,7 +156,7 @@ class RenamerImpl implements Renamer {
                     if (idx != -1)
                         addDirectory(zos, seen, name.substring(0, idx));
 
-                    log("  " + name);
+                    logger.accept("  " + name);
                     ZipEntry entry = new ZipEntry(name);
                     entry.setTime(e.getTime());
                     zos.putNextEntry(entry);
@@ -175,15 +181,11 @@ class RenamerImpl implements Renamer {
         if (idx != -1)
             addDirectory(zos, seen, path.substring(0, idx));
 
-        log("  " + path + '/');
+        logger.accept("  " + path + '/');
         ZipEntry dir = new ZipEntry(path + '/');
         dir.setTime(Entry.STABLE_TIMESTAMP);
         zos.putNextEntry(dir);
         zos.closeEntry();
-    }
-
-    private void log(String line) {
-        System.out.println(line);
     }
 
     private Entry processEntry(final Entry start) {

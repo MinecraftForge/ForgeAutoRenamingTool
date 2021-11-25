@@ -17,12 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.fart;
+package net.minecraftforge.fart.internal;
 
 import static org.objectweb.asm.Opcodes.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -34,7 +36,15 @@ import org.objectweb.asm.tree.MethodNode;
 
 import net.minecraftforge.fart.api.Transformer;
 
-public class ParameterAnnotationFixer implements Transformer {
+public final class ParameterAnnotationFixer implements Transformer {
+    private final Consumer<String> log;
+    private final Consumer<String> debug;
+
+    public ParameterAnnotationFixer(Consumer<String> log, Consumer<String> debug) {
+        this.log = log;
+        this.debug = debug;
+    }
+
     @Override
     public ClassEntry process(ClassEntry entry) {
         final ClassReader reader = new ClassReader(entry.getData());
@@ -45,20 +55,20 @@ public class ParameterAnnotationFixer implements Transformer {
         return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
     }
 
-    private static class Visitor extends ClassVisitor {
+    private class Visitor extends ClassVisitor {
         private final ClassNode node;
 
         public Visitor(ClassNode cn) {
-            super(Main.MAX_ASM_VERSION, cn);
+            super(RenamerImpl.MAX_ASM_VERSION, cn);
             this.node = cn;
         }
 
         private void debug(String message) {
-            //System.out.println(message);
+            debug.accept(message);
         }
 
         private void log(String message) {
-            System.out.println(message);
+            log.accept(message);
         }
 
         @Override

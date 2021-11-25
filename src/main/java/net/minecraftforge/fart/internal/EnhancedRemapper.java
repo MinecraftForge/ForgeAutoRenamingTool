@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -44,10 +45,12 @@ class EnhancedRemapper extends Remapper {
     private final Inheritance inh;
     private final IMappingFile map;
     private final Map<String, Optional<MClass>> resolved = new ConcurrentHashMap<>();
+    private final Consumer<String> log;
 
-    public EnhancedRemapper(Inheritance inh, IMappingFile map) {
+    public EnhancedRemapper(Inheritance inh, IMappingFile map, Consumer<String> log) {
         this.inh = inh;
         this.map = map;
+        this.log = log;
     }
 
     @Override public String mapModuleName(final String name) { return name; } // TODO? None of the mapping formats support this.
@@ -133,10 +136,6 @@ class EnhancedRemapper extends Remapper {
         private Collection<Optional<MField>> fieldsView = Collections.unmodifiableCollection(fields.values());
         private final Map<String, Optional<MMethod>> methods = new ConcurrentHashMap<>();
         private Collection<Optional<MMethod>> methodsView = Collections.unmodifiableCollection(methods.values());
-
-        private void log(String line) {
-            System.out.println(line);
-        }
 
         MClass(IClassInfo icls, IMappingFile.IClass mcls) {
             if (icls == null && mcls == null)
@@ -252,7 +251,7 @@ class EnhancedRemapper extends Remapper {
                         MMethod existing = existingO.orElse(null);
                         if (!existing.hasMapping() && !existing.getName().equals(mtd.getMapped())) {
                             if (!existing.getMapped().equals(mtd.getMapped()))
-                                log("Conflictig propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
+                                log.accept("Conflictig propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
                             existing.setMapped(mtd.getMapped());
                         }
                         /*
@@ -273,7 +272,7 @@ class EnhancedRemapper extends Remapper {
                          */
                         else if (!mtd.hasMapping() && !mtd.getName().equals(existing.getMapped())) {
                             if (!mtd.getMapped().equals(existing.getMapped()))
-                                log("Conflictig propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
+                                log.accept("Conflictig propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
                             mtd.setMapped(existing.getMapped());
                         }
                     }
