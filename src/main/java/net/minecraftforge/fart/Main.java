@@ -40,6 +40,7 @@ import net.minecraftforge.fart.api.IdentifierFixerConfig;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.SourceFixerConfig;
 import net.minecraftforge.fart.api.Transformer;
+import net.minecraftforge.srgutils.IMappingFile;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -55,6 +56,7 @@ public class Main {
         OptionSpec<SourceFixerConfig> fixSrcO = parser.accepts("src-fix", "Fixes the 'SourceFile' attribute of classes.").withOptionalArg().withValuesConvertedBy(new SrcConverter()).defaultsTo(SourceFixerConfig.JAVA);
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
+        OptionSpec<Void> reverseO = parser.accepts("reverse", "Reverse provided mapping file before applying");
         OptionSet options = parser.parse(expandArgs(args));
 
         Consumer<String> log = ln -> {
@@ -103,8 +105,13 @@ public class Main {
         // This does mean that it's not strictly a 'renaming' tool but screw it I like the name.
         if (options.has(mapO)) {
             File mapF = options.valueOf(mapO);
-            log.accept("Names: " + mapF.getAbsolutePath());
-            builder.map(mapF);
+            log.accept("Names: " + mapF.getAbsolutePath() + "(reversed: " + options.has(reverseO) + ")");
+            IMappingFile mappings = IMappingFile.load(mapF);
+            if (options.has(reverseO)) {
+                mappings = mappings.reverse();
+            }
+
+            builder.add(Transformer.renamerFactory(mappings));
         } else {
             log.accept("Names: null");
         }
