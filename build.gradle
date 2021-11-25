@@ -77,18 +77,10 @@ test {
   }
 }
 
-task sourcesJar(type: Jar) {
-    archiveClassifier = 'sources'
-    from sourceSets.main.allSource
-}
+java.withSourcesJar()
 
 shadowJar {
     manifest.from(MANIFEST)
-}
-
-artifacts {
-    archives jar
-    archives sourcesJar
 }
 
 publishing {
@@ -99,9 +91,7 @@ publishing {
                     classifier = 'changelog'
                 }
             }
-            artifact jar
-            artifact sourcesJar
-            artifact shadowJar
+            from components.java
             pom {
                 name = TITLE
                 description = 'A tool that renames java bytecode elements.'
