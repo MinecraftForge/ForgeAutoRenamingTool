@@ -30,6 +30,8 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Remapper;
 
@@ -93,6 +95,26 @@ class EnhancedRemapper extends Remapper {
             .flatMap(c -> c.getMethod(methodName, methodDescriptor))
             .map(m -> m.mapParameter(index, paramName))
             .orElse(paramName);
+    }
+
+    @Override
+    public Object mapValue(final Object value) {
+        if (value instanceof Handle) {
+            // Backport of ASM!327 https://gitlab.ow2.org/asm/asm/-/merge_requests/327
+            final Handle handle = (Handle) value;
+            final boolean isFieldHandle = handle.getTag() <= Opcodes.H_PUTSTATIC;
+
+            return new Handle(
+                    handle.getTag(),
+                    this.mapType(handle.getOwner()),
+                    isFieldHandle
+                            ? this.mapFieldName(handle.getOwner(), handle.getName(), handle.getDesc())
+                            : this.mapMethodName(handle.getOwner(), handle.getName(), handle.getDesc()),
+                    isFieldHandle ? this.mapDesc(handle.getDesc()) : this.mapMethodDesc(handle.getDesc()),
+                    handle.isInterface());
+        } else {
+            return super.mapValue(value);
+        }
     }
 
     private Optional<MClass> getClass(String cls) {
