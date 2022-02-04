@@ -1,11 +1,10 @@
 buildscript {
     repositories {
-        mavenLocal()
         mavenCentral()
         maven { url = 'https://maven.minecraftforge.net/' }
     }
     dependencies {
-        classpath 'net.minecraftforge.gradleutils:GradleUtils:2.0.5'
+        classpath  group: 'net.minecraftforge.gradleutils', name: 'GradleUtils', version: '2.+', changing: true
     }
 }
 
