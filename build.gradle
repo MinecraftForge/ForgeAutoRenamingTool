@@ -4,7 +4,7 @@ buildscript {
         maven { url = 'https://maven.minecraftforge.net/' }
     }
     dependencies {
-        classpath 'net.minecraftforge.gradleutils:GradleUtils:1.+'
+        classpath  group: 'net.minecraftforge.gradleutils', name: 'GradleUtils', version: '2.+', changing: true
     }
 }
 
@@ -39,6 +39,7 @@ ext {
             'Implementation-Vendor':    'Forge Development LLC'
         ] as LinkedHashMap, 'net/minecraftforge/fart/')
     }
+    INITIAL_CHANGELOG_TAG = '0.1'
 }
 
 repositories {
@@ -86,11 +87,6 @@ shadowJar {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            if (CHANGELOG.exists()) {
-                artifact(CHANGELOG) {
-                    classifier = 'changelog'
-                }
-            }
             from components.java
             pom {
                 name = TITLE
@@ -123,19 +119,10 @@ publishing {
         }
     }
     repositories {
-        maven {
-            if (System.env.MAVEN_USER) {
-                url 'https://maven.minecraftforge.net/'
-                authentication {
-                    basic(BasicAuthentication)
-                }
-                credentials {
-                    username = System.env.MAVEN_USER ?: 'not'
-                    password = System.env.MAVEN_PASSWORD ?: 'set'
-                }
-            } else {
-                url 'file://' + rootProject.file('repo').getAbsolutePath()
-            }
-        }
+        maven gradleutils.getPublishingForgeMaven()
     }
+}
+
+changelog {
+    fromTag INITIAL_CHANGELOG_TAG
 }
