@@ -94,7 +94,7 @@ public class InheritanceImpl implements Inheritance {
                 byte[] data = Util.toByteArray(zf.getInputStream(entry));
                 return Optional.of(new ClassInfo(data));
             } catch (IOException e) {
-                throw new RuntimeException("Could not get data to compute class info in: " + source.getAbsolutePath(), e);
+                throw new RuntimeException("Could not get data to compute class info in file: " + source.getAbsolutePath(), e);
             }
         } else {
             try {
