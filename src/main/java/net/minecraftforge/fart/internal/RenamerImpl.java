@@ -164,7 +164,7 @@ class RenamerImpl implements Renamer {
                     zos.closeEntry();
                 }
             } catch (IOException e) {
-                throw new RuntimeException("Could write output to file: " + output.getAbsolutePath(), e);
+                throw new RuntimeException("Could not write output to file: " + output.getAbsolutePath(), e);
             }
         } finally {
             async.shutdown();
