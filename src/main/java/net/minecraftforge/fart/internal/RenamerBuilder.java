@@ -65,7 +65,7 @@ public class RenamerBuilder implements Builder {
         try {
             add(Transformer.renamerFactory(IMappingFile.load(value)));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not map file: " + value.getAbsolutePath(), e);
         }
         return this;
     }

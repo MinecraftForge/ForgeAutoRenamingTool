@@ -77,7 +77,7 @@ public final class FFLineFixer implements Transformer {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not create FFLineFixer for file: " + data.getAbsolutePath(), e);
         }
     }
 
