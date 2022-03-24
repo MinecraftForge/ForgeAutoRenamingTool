@@ -82,6 +82,7 @@ java.withSourcesJar()
 
 shadowJar {
     manifest.from(MANIFEST)
+    minimize()
 
     def relocations = [
             'org.objectweb.asm',
