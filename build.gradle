@@ -82,7 +82,20 @@ java.withSourcesJar()
 
 shadowJar {
     manifest.from(MANIFEST)
+    minimize()
+
+    def relocations = [
+            'org.objectweb.asm',
+            'net.minecraftforge.srgutils',
+            'joptsimple'
+    ]
+
+    relocations.forEach {
+        relocate it, "net.minecraftforge.fart.relocated.$it"
+    }
 }
+
+assemble.dependsOn shadowJar
 
 publishing {
     publications {
