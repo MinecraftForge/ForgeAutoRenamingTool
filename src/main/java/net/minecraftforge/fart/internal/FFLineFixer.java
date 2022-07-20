@@ -123,7 +123,7 @@ public final class FFLineFixer implements Transformer {
             return new MethodVisitor(RenamerImpl.MAX_ASM_VERSION, parent) {
                 @Override
                 public void visitLineNumber(final int line, final Label start) {
-                    Map.Entry<Integer, Integer> nline = lines.higherEntry(line);
+                    Map.Entry<Integer, Integer> nline = lines.ceilingEntry(line);
                     if (nline != null) {
                         madeChange = true;
                         super.visitLineNumber(nline.getValue(), start);
