@@ -273,7 +273,7 @@ class EnhancedRemapper extends Remapper {
                         MMethod existing = existingO.orElse(null);
                         if (!existing.hasMapping() && !existing.getName().equals(mtd.getMapped())) {
                             if (!existing.getMapped().equals(mtd.getMapped()))
-                                log.accept("Conflictig propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
+                                log.accept("Conflicting propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
                             existing.setMapped(mtd.getMapped());
                         }
                         /*
@@ -294,7 +294,7 @@ class EnhancedRemapper extends Remapper {
                          */
                         else if (!mtd.hasMapping() && !mtd.getName().equals(existing.getMapped())) {
                             if (!mtd.getMapped().equals(existing.getMapped()))
-                                log.accept("Conflictig propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
+                                log.accept("Conflicting propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
                             mtd.setMapped(existing.getMapped());
                         }
                     }
