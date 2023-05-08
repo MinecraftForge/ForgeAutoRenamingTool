@@ -27,6 +27,8 @@ import net.minecraftforge.fart.internal.RenamerBuilder;
 public interface Renamer {
     void run();
 
+    boolean isRunning();
+
     static Builder builder() {
         return new RenamerBuilder();
     }
@@ -41,6 +43,7 @@ public interface Renamer {
         Builder threads(int value);
         Builder logger(Consumer<String> out);
         Builder debug(Consumer<String> debug);
+        Builder classLoader(ClassLoader loader);
         Renamer build();
     }
 }

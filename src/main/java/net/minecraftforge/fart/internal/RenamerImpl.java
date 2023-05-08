@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -53,6 +54,7 @@ class RenamerImpl implements Renamer {
     private final int threads;
     private final Consumer<String> logger;
     private final Consumer<String> debug;
+    private BooleanSupplier runningSupplier;
 
     RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads, Consumer<String> logger, Consumer<String> debug) {
         this.input = input.getAbsoluteFile();
@@ -95,6 +97,7 @@ class RenamerImpl implements Renamer {
         }
 
         AsyncHelper async = new AsyncHelper(threads);
+        this.runningSupplier = () -> async.isRunning();
         try {
 
             /* Disabled until we do something with it
@@ -169,6 +172,11 @@ class RenamerImpl implements Renamer {
         } finally {
             async.shutdown();
         }
+    }
+
+    @Override
+    public boolean isRunning() {
+        return this.runningSupplier != null && this.runningSupplier.getAsBoolean();
     }
 
     // Tho Directory entries are not strictly necessary, we add them because some bad implementations of Zip extractors

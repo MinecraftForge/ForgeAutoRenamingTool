@@ -41,6 +41,7 @@ public class RenamerBuilder implements Builder {
     private int threads = Runtime.getRuntime().availableProcessors();
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
+    private ClassLoader classLoader;
 
     @Override
     public Builder input(File value) {
@@ -101,6 +102,12 @@ public class RenamerBuilder implements Builder {
     }
 
     @Override
+    public Builder classLoader(ClassLoader loader) {
+        this.classLoader = loader;
+        return this;
+    }
+
+    @Override
     public Renamer build() {
         Inheritance inh = Inheritance.create(this.logger);
         final Transformer.Context ctx = new Transformer.Context() {
@@ -119,6 +126,8 @@ public class RenamerBuilder implements Builder {
                 return inh;
             }
         };
+
+        inh.setClassLoader(this.classLoader);
 
         final List<Transformer> transformers = new ArrayList<>(transformerFactories.size());
         for (Transformer.Factory factory : transformerFactories) {

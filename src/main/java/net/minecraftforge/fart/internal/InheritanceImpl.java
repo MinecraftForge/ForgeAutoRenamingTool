@@ -54,9 +54,15 @@ public class InheritanceImpl implements Inheritance {
     private final Consumer<String> log;
     private Map<String, File> sources = new HashMap<>();
     private Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
+    private ClassLoader loader = this.getClass().getClassLoader();
 
     public InheritanceImpl(Consumer<String> log) {
         this.log = log;
+    }
+
+    @Override
+    public void setClassLoader(ClassLoader loader) {
+        this.loader = loader;
     }
 
     @Override
@@ -98,7 +104,7 @@ public class InheritanceImpl implements Inheritance {
             }
         } else {
             try {
-                Class<?> cls = Class.forName(name.replace('/', '.'), false, this.getClass().getClassLoader());
+                Class<?> cls = Class.forName(name.replace('/', '.'), false, this.loader);
                 return Optional.of(new ClassInfo(cls));
             } catch (ClassNotFoundException ex) {
                 log.accept("Cant Find Class: " + name);

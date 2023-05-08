@@ -37,6 +37,7 @@ public interface Inheritance {
         return new InheritanceImpl(requireNonNull(out));
     }
 
+    void setClassLoader(ClassLoader loader);
     void addLibrary(File path);
     void addClass(String cls, byte[] data);
     Optional<? extends IClassInfo> getClass(String cls);
