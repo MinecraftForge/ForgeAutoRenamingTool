@@ -48,7 +48,7 @@ public class RenamingTransformer implements Transformer {
     @Override
     public ClassEntry process(ClassEntry entry) {
         ClassReader reader = new ClassReader(entry.getData());
-        ClassWriter writer = new ClassWriter(reader, 0);
+        ClassWriter writer = new ClassWriter(0);
         ClassRemapper remapper = new EnhancedClassRemapper(writer, this.remapper, this);
 
         reader.accept(remapper, 0);
