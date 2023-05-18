@@ -85,8 +85,8 @@ shadowJar {
     minimize()
 
     def relocations = [
-            //'org.objectweb.asm',
-            //'net.minecraftforge.srgutils',
+            'org.objectweb.asm',
+            'net.minecraftforge.srgutils',
             'joptsimple'
     ]
 
