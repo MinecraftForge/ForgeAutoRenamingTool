@@ -27,8 +27,6 @@ import net.minecraftforge.fart.internal.RenamerBuilder;
 public interface Renamer {
     void run();
 
-    boolean isRunning();
-
     static Builder builder() {
         return new RenamerBuilder();
     }

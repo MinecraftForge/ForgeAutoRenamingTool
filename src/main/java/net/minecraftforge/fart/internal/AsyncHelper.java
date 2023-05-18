@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 class AsyncHelper {
     private final ExecutorService exec;
-    private boolean running;
     AsyncHelper(int threads) {
         if (threads <= 0)
             throw new IllegalArgumentException("Really.. no threads to process things? What do you want me to use a genie?");
@@ -41,7 +40,6 @@ class AsyncHelper {
             exec = Executors.newSingleThreadExecutor();
         else
             exec = Executors.newWorkStealingPool(threads);
-        this.running = true;
     }
 
     public <I> void consumeAll(Collection<? extends I> inputs, Function<I, String> namer, Consumer<I> consumer) {
@@ -77,10 +75,5 @@ class AsyncHelper {
 
     public void shutdown() {
         exec.shutdown();
-        this.running = false;
-    }
-
-    public boolean isRunning() {
-        return this.running;
     }
 }
