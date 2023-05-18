@@ -217,7 +217,7 @@ class EnhancedRemapper extends Remapper {
                     MMethod mtd = mtdo.orElse(null);
                     /* https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-5.html#jvms-5.4.3.3
                      * According to the spec, it does not check access on super classes, but it checks
-                     * on interfaces if it is not ACC_PRIVE or ACC_STATIC.
+                     * on interfaces if it is not ACC_PRIVATE or ACC_STATIC.
                      *
                      * Here are some examples:
                      *   class A {
@@ -273,7 +273,7 @@ class EnhancedRemapper extends Remapper {
                         MMethod existing = existingO.orElse(null);
                         if (!existing.hasMapping() && !existing.getName().equals(mtd.getMapped())) {
                             if (!existing.getMapped().equals(mtd.getMapped()))
-                                log.accept("Conflictig propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
+                                log.accept("Conflicting propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
                             existing.setMapped(mtd.getMapped());
                         }
                         /*
@@ -294,7 +294,7 @@ class EnhancedRemapper extends Remapper {
                          */
                         else if (!mtd.hasMapping() && !mtd.getName().equals(existing.getMapped())) {
                             if (!mtd.getMapped().equals(existing.getMapped()))
-                                log.accept("Conflictig propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
+                                log.accept("Conflicting propagated mapping for " + mtd + " from " + existing + ": " + mtd.getMapped() + " -> " + existing.getMapped());
                             mtd.setMapped(existing.getMapped());
                         }
                     }
