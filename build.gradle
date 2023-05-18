@@ -58,7 +58,7 @@ license {
 
 dependencies {
     implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
-    api 'net.minecraftforge:srgutils:0.4.9'
+    api 'net.minecraftforge:srgutils:0.5.1'
     implementation 'org.ow2.asm:asm:9.2'
     implementation 'org.ow2.asm:asm-commons:9.2'
     implementation 'org.ow2.asm:asm-tree:9.2'
