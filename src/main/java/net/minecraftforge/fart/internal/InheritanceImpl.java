@@ -21,11 +21,16 @@ package net.minecraftforge.fart.internal;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,8 +44,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
@@ -50,10 +53,11 @@ import org.objectweb.asm.tree.MethodNode;
 
 import net.minecraftforge.fart.api.Inheritance;
 
-public class InheritanceImpl implements Inheritance {
+public class InheritanceImpl implements Inheritance, Closeable {
     private final Consumer<String> log;
-    private Map<String, File> sources = new HashMap<>();
-    private Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
+    private final List<FileSystem> fileSystems = new ArrayList<>();
+    private final Map<String, Path> sources = new HashMap<>();
+    private final Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
 
     public InheritanceImpl(Consumer<String> log) {
         this.log = log;
@@ -61,14 +65,25 @@ public class InheritanceImpl implements Inheritance {
 
     @Override
     public void addLibrary(File path) {
-        try (ZipFile jar = new ZipFile(path)) {
-            Util.forZip(jar, e -> {
-                if (!e.getName().endsWith(".class") || e.getName().startsWith("META-INF"))
-                    return;
-                String name = e.getName();
-                name = name.substring(0, name.length() - 6);
-                sources.putIfAbsent(name, path);
-            });
+        try {
+            Path libraryDir;
+            if (path.isDirectory()) {
+                libraryDir = path.toPath();
+            } else {
+                FileSystem zipFs = FileSystems.newFileSystem(path.toPath(), (ClassLoader) null);
+                this.fileSystems.add(zipFs);
+                libraryDir = zipFs.getPath("/");
+            }
+
+            try (Stream<Path> walker = Files.walk(libraryDir)) {
+                walker.forEach(fullPath -> {
+                    Path relativePath = libraryDir.relativize(fullPath);
+                    String pathName = relativePath.toString();
+                    if (!pathName.endsWith(".class") || pathName.startsWith("META-INF"))
+                        return;
+                    this.sources.putIfAbsent(pathName.substring(0, pathName.length() - 6), fullPath);
+                });
+            }
         } catch (IOException e) {
             throw new RuntimeException("Could not add library: " + path.getAbsolutePath(), e);
         }
@@ -84,24 +99,28 @@ public class InheritanceImpl implements Inheritance {
         this.classes.computeIfAbsent(name, k -> Optional.of(new ClassInfo(value)));
     }
 
+    @Override
+    public void close() throws IOException {
+        for (FileSystem fs : this.fileSystems) {
+            fs.close();
+        }
+    }
+
     private Optional<ClassInfo> computeClassInfo(String name) {
-        File source = sources.get(name);
+        Path source = this.sources.get(name);
         if (source != null) {
-            try (ZipFile zf = new ZipFile(source)) {
-                ZipEntry entry = zf.getEntry(name + ".class");
-                if (entry == null)
-                    throw new IllegalStateException("Could not get " + name + ".class entry in " + source.getAbsolutePath());
-                byte[] data = Util.toByteArray(zf.getInputStream(entry));
+            try {
+                byte[] data = Util.toByteArray(Files.newInputStream(source));
                 return Optional.of(new ClassInfo(data));
             } catch (IOException e) {
-                throw new RuntimeException("Could not get data to compute class info in file: " + source.getAbsolutePath(), e);
+                throw new RuntimeException("Could not get data to compute class info in file: " + source.toAbsolutePath(), e);
             }
         } else {
             try {
                 Class<?> cls = Class.forName(name.replace('/', '.'), false, this.getClass().getClassLoader());
                 return Optional.of(new ClassInfo(cls));
-            } catch (ClassNotFoundException ex) {
-                log.accept("Cant Find Class: " + name);
+            } catch (ClassNotFoundException | NoClassDefFoundError ex) {
+                log.accept("Can't Find Class: " + name);
                 return Optional.empty();
             }
         }

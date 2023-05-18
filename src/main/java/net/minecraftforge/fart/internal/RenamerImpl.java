@@ -19,6 +19,7 @@
 
 package net.minecraftforge.fart.internal;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -168,6 +169,11 @@ class RenamerImpl implements Renamer {
             }
         } finally {
             async.shutdown();
+            if (this.inh instanceof Closeable) {
+                try {
+                    ((Closeable) this.inh).close();
+                } catch (IOException ignored) {}
+            }
         }
     }
 
