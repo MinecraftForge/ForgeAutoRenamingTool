@@ -41,7 +41,7 @@ public class RenamerBuilder implements Builder {
     private int threads = Runtime.getRuntime().availableProcessors();
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
-    private ClassLoader classLoader;
+    private ClassLoader classLoader = this.getClass().getClassLoader();
 
     @Override
     public Builder input(File value) {
