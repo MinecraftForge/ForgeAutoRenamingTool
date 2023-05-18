@@ -127,7 +127,9 @@ public class RenamerBuilder implements Builder {
             }
         };
 
-        inh.setClassLoader(this.classLoader);
+        if (this.classLoader != null) {
+            inh.setClassLoader(this.classLoader);
+        }
 
         final List<Transformer> transformers = new ArrayList<>(transformerFactories.size());
         for (Transformer.Factory factory : transformerFactories) {
