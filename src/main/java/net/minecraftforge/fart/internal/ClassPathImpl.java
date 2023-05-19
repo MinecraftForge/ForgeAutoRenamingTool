@@ -21,8 +21,6 @@ package net.minecraftforge.fart.internal;
 
 import static org.objectweb.asm.Opcodes.*;
 
-import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -45,32 +43,33 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import net.minecraftforge.fart.api.Inheritance;
+import net.minecraftforge.fart.api.ClassPath;
 
-public class InheritanceImpl implements Inheritance, Closeable {
+public class ClassPathImpl implements ClassPath {
     private final Consumer<String> log;
     private final List<FileSystem> fileSystems = new ArrayList<>();
     private final Map<String, Path> sources = new HashMap<>();
     private final Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
 
-    public InheritanceImpl(Consumer<String> log) {
+    public ClassPathImpl(Consumer<String> log) {
         this.log = log;
     }
 
     @Override
-    public void addLibrary(File path) {
+    public void addLibrary(Path path) {
         try {
             Path libraryDir;
-            if (path.isDirectory()) {
-                libraryDir = path.toPath();
+            if (Files.isDirectory(path)) {
+                libraryDir = path;
             } else {
-                FileSystem zipFs = FileSystems.newFileSystem(path.toPath(), (ClassLoader) null);
+                FileSystem zipFs = FileSystems.newFileSystem(path, (ClassLoader) null);
                 this.fileSystems.add(zipFs);
                 libraryDir = zipFs.getPath("/");
             }
@@ -78,14 +77,14 @@ public class InheritanceImpl implements Inheritance, Closeable {
             try (Stream<Path> walker = Files.walk(libraryDir)) {
                 walker.forEach(fullPath -> {
                     Path relativePath = libraryDir.relativize(fullPath);
-                    String pathName = relativePath.toString();
+                    String pathName = relativePath.toString().replace('\\', '/');
                     if (!pathName.endsWith(".class") || pathName.startsWith("META-INF"))
                         return;
                     this.sources.putIfAbsent(pathName.substring(0, pathName.length() - 6), fullPath);
                 });
             }
         } catch (IOException e) {
-            throw new RuntimeException("Could not add library: " + path.getAbsolutePath(), e);
+            throw new RuntimeException("Could not add library: " + path.toAbsolutePath(), e);
         }
     }
 
@@ -186,6 +185,7 @@ public class InheritanceImpl implements Inheritance, Closeable {
         public String getName() {
             return name;
         }
+        @Nullable
         @Override
         public String getSuper() {
             return superName;

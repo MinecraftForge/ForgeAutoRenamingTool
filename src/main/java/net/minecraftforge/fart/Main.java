@@ -169,8 +169,9 @@ public class Main {
             log.accept("Strip codesigning signatures: false");
         }
 
-        Renamer renamer = builder.build();
-        renamer.run();
+        try (Renamer renamer = builder.build()) {
+            renamer.run();
+        }
     }
 
     private static String[] expandArgs(String[] args) throws IOException {

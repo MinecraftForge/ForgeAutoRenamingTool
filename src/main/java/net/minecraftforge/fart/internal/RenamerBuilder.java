@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import net.minecraftforge.fart.api.Inheritance;
+import net.minecraftforge.fart.api.ClassPath;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.Renamer.Builder;
 import net.minecraftforge.fart.api.Transformer;
@@ -102,7 +102,7 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Renamer build() {
-        Inheritance inh = Inheritance.create(this.logger);
+        ClassPath classPath = ClassPath.create(this.logger);
         final Transformer.Context ctx = new Transformer.Context() {
             @Override
             public Consumer<String> getLog() {
@@ -115,8 +115,8 @@ public class RenamerBuilder implements Builder {
             }
 
             @Override
-            public Inheritance getInheritance() {
-                return inh;
+            public ClassPath getClassPath() {
+                return classPath;
             }
         };
 
@@ -124,6 +124,6 @@ public class RenamerBuilder implements Builder {
         for (Transformer.Factory factory : transformerFactories) {
             transformers.add(requireNonNull(factory.create(ctx), "output of " + factory));
         }
-        return new RenamerImpl(input, output, libraries, transformers, inh, threads, logger, debug);
+        return new RenamerImpl(input, output, libraries, transformers, classPath, threads, logger, debug);
     }
 }

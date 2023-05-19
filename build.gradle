@@ -59,15 +59,15 @@ license {
 dependencies {
     implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
     api 'net.minecraftforge:srgutils:0.5.1'
-    implementation 'org.ow2.asm:asm:9.2'
-    implementation 'org.ow2.asm:asm-commons:9.2'
-    implementation 'org.ow2.asm:asm-tree:9.2'
-    
+    implementation 'org.ow2.asm:asm:9.5'
+    implementation 'org.ow2.asm:asm-commons:9.5'
+    implementation 'org.ow2.asm:asm-tree:9.5'
+
     testImplementation(platform('org.junit:junit-bom:5.8.1'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testImplementation('org.powermock:powermock-core:2.0.9')
-    
-    compileOnly('com.google.code.findbugs:jsr305:3.0.2')
+
+    compileOnly 'org.jetbrains:annotations:24.0.1'
 }
 
 
