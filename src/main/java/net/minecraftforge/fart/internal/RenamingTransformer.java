@@ -32,7 +32,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.commons.ClassRemapper;
 
-import net.minecraftforge.fart.api.Inheritance;
+import net.minecraftforge.fart.api.ClassProvider;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.srgutils.IMappingFile;
 
@@ -41,8 +41,8 @@ public class RenamingTransformer implements Transformer {
     private final EnhancedRemapper remapper;
     private final Set<String> abstractParams = ConcurrentHashMap.newKeySet();
 
-    public RenamingTransformer(Inheritance inh, IMappingFile map, Consumer<String> log) {
-        this.remapper = new EnhancedRemapper(inh, map, log);
+    public RenamingTransformer(ClassProvider classProvider, IMappingFile map, Consumer<String> log) {
+        this.remapper = new EnhancedRemapper(classProvider, map, log);
     }
 
     @Override

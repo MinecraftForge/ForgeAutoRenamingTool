@@ -19,7 +19,6 @@
 
 package net.minecraftforge.fart.internal;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 import org.objectweb.asm.Opcodes;
 
-import net.minecraftforge.fart.api.Inheritance;
+import net.minecraftforge.fart.api.ClassProvider;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.fart.api.Transformer.ClassEntry;
@@ -46,30 +46,47 @@ import net.minecraftforge.fart.api.Transformer.ResourceEntry;
 class RenamerImpl implements Renamer {
     static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
-    private final File input;
-    private final File output;
     private final List<File> libraries;
     private final List<Transformer> transformers;
-    private final Inheritance inh;
+    private final SortedClassProvider sortedClassProvider;
+    private final List<ClassProvider> classProviders;
     private final int threads;
     private final Consumer<String> logger;
     private final Consumer<String> debug;
+    private boolean setup = false;
+    private ClassProvider libraryClasses;
 
-    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, Inheritance inh, int threads, Consumer<String> logger, Consumer<String> debug) {
-        this.input = input.getAbsoluteFile();
-        this.output = output.getAbsoluteFile();
+    RenamerImpl(List<File> libraries, List<Transformer> transformers, SortedClassProvider sortedClassProvider, List<ClassProvider> classProviders,
+            int threads, Consumer<String> logger, Consumer<String> debug) {
         this.libraries = libraries;
         this.transformers = transformers;
-        this.inh = inh;
+        this.sortedClassProvider = sortedClassProvider;
+        this.classProviders = Collections.unmodifiableList(classProviders);
         this.threads = threads;
         this.logger = logger;
         this.debug = debug;
     }
 
+    private void setup() {
+        if (this.setup)
+            return;
+
+        this.setup = true;
+
+        ClassProvider.Builder libraryClassesBuilder = ClassProvider.builder().shouldCacheAll(true);
+        this.logger.accept("Adding Libraries to Inheritance");
+        this.libraries.forEach(f -> libraryClassesBuilder.addLibrary(f.toPath()));
+
+        this.libraryClasses = libraryClassesBuilder.build();
+    }
+
     @Override
-    public void run() {
-        logger.accept("Adding Libraries to Inheritance");
-        libraries.forEach(inh::addLibrary);
+    public void run(File input, File output) {
+        if (!this.setup)
+            this.setup();
+
+        input = Objects.requireNonNull(input).getAbsoluteFile();
+        output = Objects.requireNonNull(output).getAbsoluteFile();
 
         if (!input.exists())
             throw new IllegalArgumentException("Input file not found: " + input.getAbsolutePath());
@@ -95,6 +112,11 @@ class RenamerImpl implements Renamer {
             throw new RuntimeException("Could not parse input: " + input.getAbsolutePath(), e);
         }
 
+        this.sortedClassProvider.clearCache();
+        ArrayList<ClassProvider> classProviders = new ArrayList<>(this.classProviders);
+        classProviders.add(0, this.libraryClasses);
+        this.sortedClassProvider.classProviders = classProviders;
+
         AsyncHelper async = new AsyncHelper(threads);
         try {
 
@@ -112,10 +134,12 @@ class RenamerImpl implements Renamer {
                 .collect(Collectors.toList());
 
             // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
-            logger.accept("Adding input to inheritence map");
+            logger.accept("Adding input to inheritance map");
+            ClassProvider.Builder inputClassesBuilder = ClassProvider.builder();
             async.consumeAll(ourClasses, ClassEntry::getClassName, c ->
-                inh.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
+                inputClassesBuilder.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
             );
+            classProviders.add(0, inputClassesBuilder.build());
 
             // Process everything
             logger.accept("Processing entries");
@@ -169,11 +193,6 @@ class RenamerImpl implements Renamer {
             }
         } finally {
             async.shutdown();
-            if (this.inh instanceof Closeable) {
-                try {
-                    ((Closeable) this.inh).close();
-                } catch (IOException ignored) {}
-            }
         }
     }
 
@@ -211,5 +230,10 @@ class RenamerImpl implements Renamer {
         if (MANIFEST_NAME.equals(o2.getName()))
             return MANIFEST_NAME.equals(o1.getName()) ? 0 :  1;
         return o1.getName().compareTo(o2.getName());
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.sortedClassProvider.close();
     }
 }

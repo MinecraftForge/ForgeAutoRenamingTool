@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import net.minecraftforge.fart.api.Inheritance;
+import net.minecraftforge.fart.api.ClassProvider;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.Renamer.Builder;
 import net.minecraftforge.fart.api.Transformer;
@@ -34,25 +34,13 @@ import net.minecraftforge.srgutils.IMappingFile;
 import static java.util.Objects.requireNonNull;
 
 public class RenamerBuilder implements Builder {
-    private File input;
-    private File output;
     private final List<File> libraries = new ArrayList<>();
+    private final List<ClassProvider> classProviders = new ArrayList<>();
     private final List<Transformer.Factory> transformerFactories = new ArrayList<>();
     private int threads = Runtime.getRuntime().availableProcessors();
+    private boolean withJvmClasspath = false;
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
-
-    @Override
-    public Builder input(File value) {
-        this.input = value;
-        return this;
-    }
-
-    @Override
-    public Builder output(File value) {
-        this.output = value;
-        return this;
-    }
 
     @Override
     public Builder lib(File value) {
@@ -67,6 +55,19 @@ public class RenamerBuilder implements Builder {
         } catch (IOException e) {
             throw new RuntimeException("Could not map file: " + value.getAbsolutePath(), e);
         }
+        return this;
+    }
+
+    @Override
+    public Builder addClassProvider(ClassProvider classProvider) {
+        this.classProviders.add(classProvider);
+        return this;
+    }
+
+    @Override
+    public Builder withJvmClasspath() {
+        // We use a property to ensure the JVM classpath is always added last
+        this.withJvmClasspath = true;
         return this;
     }
 
@@ -102,7 +103,11 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Renamer build() {
-        Inheritance inh = Inheritance.create(this.logger);
+        List<ClassProvider> classProviders = new ArrayList<>(this.classProviders);
+        if (this.withJvmClasspath)
+            classProviders.add(ClassProvider.fromJvmClasspath());
+
+        SortedClassProvider sortedClassProvider = new SortedClassProvider(classProviders, this.logger);
         final Transformer.Context ctx = new Transformer.Context() {
             @Override
             public Consumer<String> getLog() {
@@ -115,8 +120,8 @@ public class RenamerBuilder implements Builder {
             }
 
             @Override
-            public Inheritance getInheritance() {
-                return inh;
+            public ClassProvider getClassProvider() {
+                return sortedClassProvider;
             }
         };
 
@@ -124,6 +129,6 @@ public class RenamerBuilder implements Builder {
         for (Transformer.Factory factory : transformerFactories) {
             transformers.add(requireNonNull(factory.create(ctx), "output of " + factory));
         }
-        return new RenamerImpl(input, output, libraries, transformers, inh, threads, logger, debug);
+        return new RenamerImpl(libraries, transformers, sortedClassProvider, classProviders, threads, logger, debug);
     }
 }

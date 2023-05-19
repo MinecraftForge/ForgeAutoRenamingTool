@@ -23,6 +23,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
+import java.util.zip.ZipEntry;
 
 import net.minecraftforge.fart.internal.FFLineFixer;
 import net.minecraftforge.fart.internal.IdentifierFixer;
@@ -33,34 +34,50 @@ import net.minecraftforge.fart.internal.RenamingTransformer;
 import net.minecraftforge.fart.internal.SignatureStripperTransformer;
 import net.minecraftforge.fart.internal.SourceFixer;
 import net.minecraftforge.srgutils.IMappingFile;
+import org.objectweb.asm.Type;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A {@code Transformer} is the basic building block for transforming entries read from a JAR file.
+ * Transformers can be registered to a {@link Renamer.Builder} to run over all entries.
+ */
 public interface Transformer {
+    /**
+     * Processes a class entry and returns the transformed entry.
+     *
+     * @param entry the original entry
+     * @return the transformed entry
+     */
     default ClassEntry process(ClassEntry entry) {
         return entry;
     }
+
+    /**
+     * Processes a manifest entry and returns the transformed entry.
+     *
+     * @param entry the original entry
+     * @return the transformed entry
+     */
     default ManifestEntry process(ManifestEntry entry) {
         return entry;
     }
+
+    /**
+     * Processes a resource entry and returns the transformed entry.
+     *
+     * @param entry the original entry
+     * @return the transformed entry
+     */
     default ResourceEntry process(ResourceEntry entry) {
         return entry;
     }
-    default Collection<? extends Entry> getExtras() {
-        return Collections.emptyList();
-    }
 
     /**
-     * Create a transformer that applies mappings as a transformation.
-     *
-     * @param inh inheritance information, including remapping classpath
-     * @param map the mapping information to remap with
-     * @return a renaming transformer
-     * @deprecated use {@link #renamerFactory(IMappingFile)} instead
+     * Returns extra entries to add to the JAR file.
      */
-    @Deprecated
-    public static Transformer createRenamer(Inheritance inh, IMappingFile map) {
-        return new RenamingTransformer(inh, map, System.out::println);
+    default Collection<? extends Entry> getExtras() {
+        return Collections.emptyList();
     }
 
     /**
@@ -70,7 +87,7 @@ public interface Transformer {
      * @return a factory for a renaming transformer
      */
     public static Factory renamerFactory(IMappingFile map) {
-        return ctx -> new RenamingTransformer(ctx.getInheritance(), map, ctx.getLog());
+        return ctx -> new RenamingTransformer(ctx.getClassProvider(), map, ctx.getLog());
     }
 
     /**
@@ -113,7 +130,7 @@ public interface Transformer {
 
     /**
      * Create a transformer that fixes the {@code SourceFile} attribute of classes.
-     *
+     * <p>
      * This attempts to infer a file name based on the supplied language information.
      *
      * @param config the method to use to generate a source file name.
@@ -133,34 +150,124 @@ public interface Transformer {
         return ctx -> new SignatureStripperTransformer(ctx.getLog(), config);
     }
 
+    /**
+     * A {@code Entry} is a single entry representing an entry in a JAR file.
+     */
     public interface Entry {
         static final long STABLE_TIMESTAMP = 0x386D4380; //01/01/2000 00:00:00 java 8 breaks when using 0.
+
+        /**
+         * Returns the last modification time of this entry.
+         *
+         * @see ZipEntry#getTime()
+         */
         long getTime();
+
+        /**
+         * Returns the full name of this entry, including folders and file extension,
+         * relative to the root of the JAR file.
+         *
+         * @see ZipEntry#getName()
+         */
         String getName();
+
+        /**
+         * Returns the bytes associated with this entry.
+         */
         byte[] getData();
+
+        /**
+         * Runs the provided transformer over this entry and returns the transformed entry.
+         *
+         * @param transformer the transformer to run
+         * @return the transformed entry
+         */
         Entry process(Transformer transformer);
     }
 
+    /**
+     * A {@code ClassEntry} represents a class file entry in a JAR file.
+     */
     public interface ClassEntry extends Entry {
+        /**
+         * Creates a default class entry.
+         *
+         * @param name the name of the entry
+         * @param time the last modification time
+         * @param data the raw class bytes
+         * @return the class entry
+         */
         static ClassEntry create(String name, long time, byte[] data) {
             return new EntryImpl.ClassEntry(name, time, data);
         }
+
+        /**
+         * Creates a default class entry for a multi-release class.
+         *
+         * @param cls the name of the class
+         * @param time the last modification time
+         * @param data the raw class bytes
+         * @param version the java version
+         * @return the class entry
+         */
         static ClassEntry create(String cls, long time, byte[] data, int version) {
             return create("META-INF/versions/" + version + '/' +  cls + ".class", time, data);
         }
 
+        /**
+         * Returns the internal name of the class associated with this entry.
+         *
+         * @see Type#getInternalName()
+         */
         String getClassName();
+
+        /**
+         * Returns {@code true} if this entry is a multi-release class.
+         *
+         * @see #getVersion()
+         */
         boolean isMultiRelease();
+
+        /**
+         * Returns the java version associated with this multi-release class.
+         * If this is not a multi-release class entry, the behavior is undefined.
+         *
+         * @return the java version associated with this multi-release class
+         * @see #isMultiRelease()
+         */
         int getVersion();
     }
 
+    /**
+     * A {@code ResourceEntry} represents a generic resource entry in a JAR file
+     * that is not a class file or manifest.
+     */
     public interface ResourceEntry extends Entry {
+        /**
+         * Creates a default resource entry.
+         *
+         * @param name the name of the entry
+         * @param time the last modification time
+         * @param data the raw resource bytes
+         * @return the resource entry
+         */
         static ResourceEntry create(String name, long time, byte[] data) {
             return new EntryImpl.ResourceEntry(name, time, data);
         }
     }
 
+    /**
+     * A {@code ManifestEntry} represents a manifest entry in a JAR file.
+     */
     public interface ManifestEntry extends Entry {
+        /**
+         * Creates a default manifest entry.
+         * The name of this entry is always {@code META-INF/MANIFEST.MF}.
+         *
+         * @param time the last modification time
+         * @param data the raw manifest bytes
+         * @return the manifest entry
+         */
         static ManifestEntry create(long time, byte[] data) {
             return new EntryImpl.ManifestEntry(time, data);
         }
@@ -207,6 +314,13 @@ public interface Transformer {
          * @return the debug logging handler
          */
         Consumer<String> getDebug();
-        Inheritance getInheritance();
+
+        /**
+         * Get a class provider instance that holds centralized information
+         * about class files from the registered class providers.
+         *
+         * @return the class provider instance
+         */
+        ClassProvider getClassProvider();
     }
 }

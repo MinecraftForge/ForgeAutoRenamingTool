@@ -28,29 +28,28 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
-
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Remapper;
 
-import net.minecraftforge.fart.api.Inheritance;
-import net.minecraftforge.fart.api.Inheritance.IClassInfo;
-import net.minecraftforge.fart.api.Inheritance.IFieldInfo;
-import net.minecraftforge.fart.api.Inheritance.IMethodInfo;
+import net.minecraftforge.fart.api.ClassProvider;
+import net.minecraftforge.fart.api.ClassProvider.IClassInfo;
+import net.minecraftforge.fart.api.ClassProvider.IFieldInfo;
+import net.minecraftforge.fart.api.ClassProvider.IMethodInfo;
 import net.minecraftforge.srgutils.IMappingFile;
 
 import static org.objectweb.asm.Opcodes.*;
 
 class EnhancedRemapper extends Remapper {
-    private final Inheritance inh;
+    private final ClassProvider classProvider;
     private final IMappingFile map;
     private final Map<String, Optional<MClass>> resolved = new ConcurrentHashMap<>();
     private final Consumer<String> log;
 
-    public EnhancedRemapper(Inheritance inh, IMappingFile map, Consumer<String> log) {
-        this.inh = inh;
+    public EnhancedRemapper(ClassProvider classProvider, IMappingFile map, Consumer<String> log) {
+        this.classProvider = classProvider;
         this.map = map;
         this.log = log;
     }
@@ -133,8 +132,8 @@ class EnhancedRemapper extends Remapper {
         return ret;
     }
 
-    private Inheritance getInheritance() {
-        return this.inh;
+    private ClassProvider getClassProvider() {
+        return this.classProvider;
     }
 
     private IMappingFile getMap() {
@@ -142,7 +141,7 @@ class EnhancedRemapper extends Remapper {
     }
 
     private Optional<MClass> computeClass(String cls) {
-        Optional<? extends IClassInfo> icls = this.getInheritance().getClass(cls);
+        Optional<? extends IClassInfo> icls = this.getClassProvider().getClass(cls);
         IMappingFile.IClass mcls = this.map.getClass(cls);
         if (!icls.isPresent() && mcls == null)
             return Optional.empty();
