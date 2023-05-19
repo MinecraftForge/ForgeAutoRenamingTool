@@ -40,6 +40,7 @@ public class RenamerBuilder implements Builder {
     private final List<ClassProvider> classProviders = new ArrayList<>();
     private final List<Transformer.Factory> transformerFactories = new ArrayList<>();
     private int threads = Runtime.getRuntime().availableProcessors();
+    private boolean withJvmClasspath = false;
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
 
@@ -78,6 +79,12 @@ public class RenamerBuilder implements Builder {
     }
 
     @Override
+    public Builder withJvmClasspath() {
+        this.withJvmClasspath = true;
+        return this;
+    }
+
+    @Override
     public Builder add(Transformer value) {
         this.transformerFactories.add(Transformer.Factory.always(requireNonNull(value, "value")));
         return this;
@@ -109,7 +116,7 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Renamer build() {
-        if (this.classProviders.isEmpty())
+        if (this.withJvmClasspath)
             this.classProviders.add(ClassProvider.fromJvmClasspath());
 
         SortedClassProvider sortedClassProvider = new SortedClassProvider(this.classProviders, this.logger);

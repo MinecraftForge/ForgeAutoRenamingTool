@@ -89,6 +89,14 @@ public interface Renamer extends Closeable {
         Builder addClassProvider(ClassProvider classProvider);
 
         /**
+         * Adds the default jvm classpath as a class provider to search
+         * when a class is not found in any other class provider.
+         *
+         * @return this builder
+         */
+        Builder withJvmClasspath();
+
+        /**
          * Adds a generic transformer to run over the input JAR file.
          *
          * @param value the transformer

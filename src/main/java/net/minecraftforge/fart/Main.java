@@ -86,6 +86,7 @@ public class Main {
 
         log.accept("Forge Auto Renaming Tool v" + getVersion());
         Renamer.Builder builder = Renamer.builder();
+        builder.withJvmClasspath();
         builder.logger(log);
 
         // Move this up top so that the log lines are above the rest of the config as they can be spammy.
