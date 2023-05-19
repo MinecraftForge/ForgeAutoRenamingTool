@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import net.minecraftforge.fart.api.ClassPath;
+import net.minecraftforge.fart.api.ClassProvider;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.Renamer.Builder;
 import net.minecraftforge.fart.api.Transformer;
@@ -37,6 +37,7 @@ public class RenamerBuilder implements Builder {
     private File input;
     private File output;
     private final List<File> libraries = new ArrayList<>();
+    private final List<ClassProvider> classProviders = new ArrayList<>();
     private final List<Transformer.Factory> transformerFactories = new ArrayList<>();
     private int threads = Runtime.getRuntime().availableProcessors();
     private Consumer<String> logger = System.out::println;
@@ -67,6 +68,12 @@ public class RenamerBuilder implements Builder {
         } catch (IOException e) {
             throw new RuntimeException("Could not map file: " + value.getAbsolutePath(), e);
         }
+        return this;
+    }
+
+    @Override
+    public Builder addClassProvider(ClassProvider classProvider) {
+        this.classProviders.add(classProvider);
         return this;
     }
 
@@ -102,7 +109,10 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Renamer build() {
-        ClassPath classPath = ClassPath.create(this.logger);
+        if (this.classProviders.isEmpty())
+            this.classProviders.add(ClassProvider.fromJvmClasspath());
+
+        SortedClassProvider sortedClassProvider = new SortedClassProvider(this.classProviders, this.logger);
         final Transformer.Context ctx = new Transformer.Context() {
             @Override
             public Consumer<String> getLog() {
@@ -115,8 +125,8 @@ public class RenamerBuilder implements Builder {
             }
 
             @Override
-            public ClassPath getClassPath() {
-                return classPath;
+            public ClassProvider getClassProvider() {
+                return sortedClassProvider;
             }
         };
 
@@ -124,6 +134,6 @@ public class RenamerBuilder implements Builder {
         for (Transformer.Factory factory : transformerFactories) {
             transformers.add(requireNonNull(factory.create(ctx), "output of " + factory));
         }
-        return new RenamerImpl(input, output, libraries, transformers, classPath, threads, logger, debug);
+        return new RenamerImpl(input, output, libraries, transformers, sortedClassProvider, threads, logger, debug);
     }
 }

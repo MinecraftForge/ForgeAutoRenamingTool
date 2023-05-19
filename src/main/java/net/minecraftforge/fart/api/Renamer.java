@@ -81,6 +81,14 @@ public interface Renamer extends Closeable {
         Builder map(File value);
 
         /**
+         * Adds a class provider to use when searching for classes during transformation.
+         *
+         * @param classProvider the class provider instance
+         * @return this builder
+         */
+        Builder addClassProvider(ClassProvider classProvider);
+
+        /**
          * Adds a generic transformer to run over the input JAR file.
          *
          * @param value the transformer

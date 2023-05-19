@@ -34,7 +34,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 import org.objectweb.asm.Opcodes;
 
-import net.minecraftforge.fart.api.ClassPath;
+import net.minecraftforge.fart.api.ClassProvider;
 import net.minecraftforge.fart.api.Renamer;
 import net.minecraftforge.fart.api.Transformer;
 import net.minecraftforge.fart.api.Transformer.ClassEntry;
@@ -49,17 +49,20 @@ class RenamerImpl implements Renamer {
     private final File output;
     private final List<File> libraries;
     private final List<Transformer> transformers;
-    private final ClassPath classPath;
+    private final SortedClassProvider sortedClassProvider;
+    private final ClassProvider.Mutable mutableClassProvider;
     private final int threads;
     private final Consumer<String> logger;
     private final Consumer<String> debug;
 
-    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, ClassPath classPath, int threads, Consumer<String> logger, Consumer<String> debug) {
+    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, SortedClassProvider sortedClassProvider, int threads, Consumer<String> logger, Consumer<String> debug) {
         this.input = input.getAbsoluteFile();
         this.output = output.getAbsoluteFile();
         this.libraries = libraries;
         this.transformers = transformers;
-        this.classPath = classPath;
+        this.sortedClassProvider = sortedClassProvider;
+        this.mutableClassProvider = ClassProvider.mutable();
+        this.sortedClassProvider.classProviders.add(0, this.mutableClassProvider);
         this.threads = threads;
         this.logger = logger;
         this.debug = debug;
@@ -68,7 +71,7 @@ class RenamerImpl implements Renamer {
     @Override
     public void run() {
         logger.accept("Adding Libraries to Inheritance");
-        libraries.forEach(f -> this.classPath.addLibrary(f.toPath()));
+        libraries.forEach(f -> this.mutableClassProvider.addLibrary(f.toPath()));
 
         if (!input.exists())
             throw new IllegalArgumentException("Input file not found: " + input.getAbsolutePath());
@@ -113,7 +116,7 @@ class RenamerImpl implements Renamer {
             // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
             logger.accept("Adding input to inheritance map");
             async.consumeAll(ourClasses, ClassEntry::getClassName, c ->
-                classPath.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
+                this.mutableClassProvider.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
             );
 
             // Process everything
@@ -209,6 +212,6 @@ class RenamerImpl implements Renamer {
 
     @Override
     public void close() throws IOException {
-        this.classPath.close();
+        this.sortedClassProvider.close();
     }
 }

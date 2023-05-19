@@ -34,22 +34,22 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Remapper;
 
-import net.minecraftforge.fart.api.ClassPath;
-import net.minecraftforge.fart.api.ClassPath.IClassInfo;
-import net.minecraftforge.fart.api.ClassPath.IFieldInfo;
-import net.minecraftforge.fart.api.ClassPath.IMethodInfo;
+import net.minecraftforge.fart.api.ClassProvider;
+import net.minecraftforge.fart.api.ClassProvider.IClassInfo;
+import net.minecraftforge.fart.api.ClassProvider.IFieldInfo;
+import net.minecraftforge.fart.api.ClassProvider.IMethodInfo;
 import net.minecraftforge.srgutils.IMappingFile;
 
 import static org.objectweb.asm.Opcodes.*;
 
 class EnhancedRemapper extends Remapper {
-    private final ClassPath classPath;
+    private final ClassProvider classProvider;
     private final IMappingFile map;
     private final Map<String, Optional<MClass>> resolved = new ConcurrentHashMap<>();
     private final Consumer<String> log;
 
-    public EnhancedRemapper(ClassPath classPath, IMappingFile map, Consumer<String> log) {
-        this.classPath = classPath;
+    public EnhancedRemapper(ClassProvider classProvider, IMappingFile map, Consumer<String> log) {
+        this.classProvider = classProvider;
         this.map = map;
         this.log = log;
     }
@@ -132,8 +132,8 @@ class EnhancedRemapper extends Remapper {
         return ret;
     }
 
-    private ClassPath getClassPath() {
-        return this.classPath;
+    private ClassProvider getClassProvider() {
+        return this.classProvider;
     }
 
     private IMappingFile getMap() {
@@ -141,7 +141,7 @@ class EnhancedRemapper extends Remapper {
     }
 
     private Optional<MClass> computeClass(String cls) {
-        Optional<? extends IClassInfo> icls = this.getClassPath().getClass(cls);
+        Optional<? extends IClassInfo> icls = this.getClassProvider().getClass(cls);
         IMappingFile.IClass mcls = this.map.getClass(cls);
         if (!icls.isPresent() && mcls == null)
             return Optional.empty();

@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -50,17 +49,14 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import net.minecraftforge.fart.api.ClassPath;
+import net.minecraftforge.fart.api.ClassProvider;
 
-public class ClassPathImpl implements ClassPath {
-    private final Consumer<String> log;
+public class MutableClassProviderImpl implements ClassProvider.Mutable {
     private final List<FileSystem> fileSystems = new ArrayList<>();
     private final Map<String, Path> sources = new HashMap<>();
-    private final Map<String, Optional<ClassInfo>> classes = new ConcurrentHashMap<>();
+    private final Map<String, Optional<? extends IClassInfo>> classCache = new ConcurrentHashMap<>();
 
-    public ClassPathImpl(Consumer<String> log) {
-        this.log = log;
-    }
+    public MutableClassProviderImpl() {}
 
     @Override
     public void addLibrary(Path path) {
@@ -89,13 +85,26 @@ public class ClassPathImpl implements ClassPath {
     }
 
     @Override
-    public Optional<? extends IClassInfo> getClass(String cls) {
-        return classes.computeIfAbsent(cls, this::computeClassInfo);
+    public Optional<? extends IClassInfo> getClass(String name) {
+        if (this.classCache.containsKey(name))
+            return this.classCache.get(name);
+
+        Path source = this.sources.get(name);
+        if (source != null) {
+            try {
+                byte[] data = Util.toByteArray(Files.newInputStream(source));
+                return Optional.of(new ClassInfo(data));
+            } catch (IOException e) {
+                throw new RuntimeException("Could not get data to compute class info in file: " + source.toAbsolutePath(), e);
+            }
+        }
+
+        return Optional.empty();
     }
 
     @Override
     public void addClass(String name, byte[] value) {
-        this.classes.computeIfAbsent(name, k -> Optional.of(new ClassInfo(value)));
+        this.classCache.computeIfAbsent(name, k -> Optional.of(new ClassInfo(value)));
     }
 
     @Override
@@ -105,27 +114,7 @@ public class ClassPathImpl implements ClassPath {
         }
     }
 
-    private Optional<ClassInfo> computeClassInfo(String name) {
-        Path source = this.sources.get(name);
-        if (source != null) {
-            try {
-                byte[] data = Util.toByteArray(Files.newInputStream(source));
-                return Optional.of(new ClassInfo(data));
-            } catch (IOException e) {
-                throw new RuntimeException("Could not get data to compute class info in file: " + source.toAbsolutePath(), e);
-            }
-        } else {
-            try {
-                Class<?> cls = Class.forName(name.replace('/', '.'), false, this.getClass().getClassLoader());
-                return Optional.of(new ClassInfo(cls));
-            } catch (ClassNotFoundException | NoClassDefFoundError ex) {
-                log.accept("Can't Find Class: " + name);
-                return Optional.empty();
-            }
-        }
-    }
-
-    private static class ClassInfo implements IClassInfo {
+    static class ClassInfo implements IClassInfo {
         private final String name;
         private final Access access;
         private final String superName;

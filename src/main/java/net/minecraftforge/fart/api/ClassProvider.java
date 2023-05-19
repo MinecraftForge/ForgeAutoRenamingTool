@@ -19,7 +19,8 @@
 
 package net.minecraftforge.fart.api;
 
-import net.minecraftforge.fart.internal.ClassPathImpl;
+import net.minecraftforge.fart.internal.ClassLoaderClassProvider;
+import net.minecraftforge.fart.internal.MutableClassProviderImpl;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
@@ -32,67 +33,71 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.function.Consumer;
-
-import static java.util.Objects.requireNonNull;
 
 /**
- * Holds basic information about classes including inheritance, fields, and methods.
- * <p>
- * This class path stores library paths and class information objects.
+ * Provides basic information about classes including inheritance, fields, and methods.
  */
-public interface ClassPath extends Closeable {
+public interface ClassProvider extends Closeable {
     /**
-     * Creates a default instance which logs to {@link System#out}.
+     * Creates a default mutable instance.
      * <p>
      * The default supported library paths are ZIP files and directories.
-     * Upon calling {@link #addLibrary(Path)}, the path will be walked for all class files and stored.
+     * Upon calling {@link Mutable#addLibrary(Path)}, the path will be walked for all class files and stored.
      * Like a class path, entries added earlier take precedence over later entries with the same name.
      */
-    static ClassPath create() {
-        return new ClassPathImpl(System.out::println);
+    static Mutable mutable() {
+        return new MutableClassProviderImpl();
     }
 
     /**
-     * Creates a default instance which logs to the provided consumer.
-     * <p>
-     * The default supported library paths are ZIP files and directories.
-     * Upon calling {@link #addLibrary(Path)}, the path will be walked for all class files and stored.
-     * Like a class path, entries added earlier take precedence over later entries with the same name.
-     *
-     * @param out the logging consumer
+     * Creates a class provider which reads class data from the default classloader that loaded this class.
      */
-    static ClassPath create(Consumer<String> out) {
-        return new ClassPathImpl(requireNonNull(out));
+    static ClassProvider fromJvmClasspath() {
+        return new ClassLoaderClassProvider(null);
     }
 
     /**
-     * Adds a library to the sources of this classpath.
-     * The implementation is free to accept or not accept paths of any kind.
-     * Libraries are used when querying class information.
+     * Creates a class provider which reads class data from the provided classloader,
+     * or the classloader of this class if null.
      *
-     * @param path the path object
+     * @param classLoader the classloader to read from, or {@code null} for the default JVM classpath
      */
-    void addLibrary(Path path);
-
-    /**
-     * Adds class bytes for a class to this classpath.
-     * This may be an optional operation depending on the implementation.
-     *
-     * @param cls the fully resolved classname, see {@link Type#getInternalName()}
-     * @param data the class bytes
-     */
-    void addClass(String cls, byte[] data);
+    static ClassProvider fromClassLoader(@Nullable ClassLoader classLoader) {
+        return new ClassLoaderClassProvider(classLoader);
+    }
 
     /**
      * Queries the class information from this class path.
-     * An empty optional will be returned if the class cannot be found
-     * in the registered class bytes or a registered library.
+     * An empty optional will be returned if the class cannot be found.
      *
      * @param cls the fully resolved classname, see {@link Type#getInternalName()}
      * @return the optional class information
      */
     Optional<? extends IClassInfo> getClass(String cls);
+
+    /**
+     * This class provider is a mutable variant of {@link ClassProvider} that allows
+     * adding libraries and class bytes.
+     */
+    public interface Mutable extends ClassProvider {
+        /**
+         * Adds a library to the sources of this mutable class provider.
+         * The implementation is free to accept or not accept paths of any kind.
+         * Libraries are used when querying class information.
+         *
+         * @param path the path object
+         */
+        void addLibrary(Path path);
+
+        /**
+         * Adds class bytes for a class to this mutable class provider.
+         * This may be an optional operation depending on the implementation.
+         *
+         * @param cls the fully resolved classname, see {@link Type#getInternalName()}
+         * @param data the class bytes
+         */
+        void addClass(String cls, byte[] data);
+    }
 
     /**
      * Holds basic information about a class.

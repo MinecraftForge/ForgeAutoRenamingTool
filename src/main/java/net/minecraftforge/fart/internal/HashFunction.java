@@ -19,6 +19,8 @@
 
 package net.minecraftforge.fart.internal;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,8 +30,6 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
-
-import javax.annotation.Nullable;
 
 /**
  * Different hash functions.

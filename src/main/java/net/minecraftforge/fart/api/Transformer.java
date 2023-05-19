@@ -87,7 +87,7 @@ public interface Transformer {
      * @return a factory for a renaming transformer
      */
     public static Factory renamerFactory(IMappingFile map) {
-        return ctx -> new RenamingTransformer(ctx.getClassPath(), map, ctx.getLog());
+        return ctx -> new RenamingTransformer(ctx.getClassProvider(), map, ctx.getLog());
     }
 
     /**
@@ -316,11 +316,11 @@ public interface Transformer {
         Consumer<String> getDebug();
 
         /**
-         * Get a classpath instance that holds information about class files
-         * in the registered libraries and input jar.
+         * Get a class provider instance that holds centralized information
+         * about class files from the registered class providers.
          *
-         * @return the classpath instance
+         * @return the class provider instance
          */
-        ClassPath getClassPath();
+        ClassProvider getClassProvider();
     }
 }
