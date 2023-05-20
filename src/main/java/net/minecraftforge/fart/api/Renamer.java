@@ -29,7 +29,26 @@ import net.minecraftforge.fart.internal.RenamerBuilder;
  * A {@code Renamer} is used to run generic transformers on a JAR file.
  */
 public interface Renamer extends Closeable {
-    void run();
+    /**
+     * Sets up the renamer for running.
+     * This involves IO operations that are not specific
+     * to any one input or output JAR file.
+     * <p>
+     * Running setup is required before {@link #run(File, File)}.
+     * Running it again is a no-op.
+     */
+    void setup();
+
+    /**
+     * Runs the renamer and all registered transformers on the input JAR file,
+     * and then outputs it to the output JAR file.
+     * This method is guaranteed to be repeatable with multiple inputs and outputs.
+     * Must run {@link #setup()} before calling this method the first time.
+     *
+     * @param input the input JAR file to process
+     * @param output the output JAR file location
+     */
+    void run(File input, File output);
 
     /**
      * Creates a default instance of a {@link Builder}.
@@ -44,26 +63,9 @@ public interface Renamer extends Closeable {
     }
 
     /**
-     * A {@code Renamer.Builder} is used to configure and construct
-     * a {@link Renamer}.
+     * A {@code Renamer.Builder} is used to configure and construct a {@link Renamer}.
      */
     public interface Builder {
-        /**
-         * Sets the input JAR file to process.
-         *
-         * @param value the input JAR file
-         * @return this builder
-         */
-        Builder input(File value);
-
-        /**
-         * Sets the output JAR file to write to.
-         *
-         * @param value the output JAR file
-         * @return this builder
-         */
-        Builder output(File value);
-
         /**
          * Adds a library file to the classpath to use for inheritance.
          *
@@ -139,6 +141,7 @@ public interface Renamer extends Closeable {
 
         /**
          * Builds the {@link Renamer} instance based on this configured builder.
+         * The built Renamer is guaranteed to be reusable for multiple runs.
          *
          * @return the built {@link Renamer}
          */

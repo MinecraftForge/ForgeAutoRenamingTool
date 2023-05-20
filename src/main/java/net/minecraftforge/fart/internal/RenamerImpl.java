@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -45,33 +46,48 @@ import net.minecraftforge.fart.api.Transformer.ResourceEntry;
 class RenamerImpl implements Renamer {
     static final int MAX_ASM_VERSION = Opcodes.ASM9;
     private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
-    private final File input;
-    private final File output;
     private final List<File> libraries;
     private final List<Transformer> transformers;
     private final SortedClassProvider sortedClassProvider;
-    private final ClassProvider.Mutable mutableClassProvider;
+    private final List<ClassProvider> classProviders;
     private final int threads;
     private final Consumer<String> logger;
     private final Consumer<String> debug;
+    private boolean setup = false;
+    private ClassProvider libraryClasses;
 
-    RenamerImpl(File input, File output, List<File> libraries, List<Transformer> transformers, SortedClassProvider sortedClassProvider, int threads, Consumer<String> logger, Consumer<String> debug) {
-        this.input = input.getAbsoluteFile();
-        this.output = output.getAbsoluteFile();
+    RenamerImpl(List<File> libraries, List<Transformer> transformers, SortedClassProvider sortedClassProvider, List<ClassProvider> classProviders,
+            int threads, Consumer<String> logger, Consumer<String> debug) {
         this.libraries = libraries;
         this.transformers = transformers;
         this.sortedClassProvider = sortedClassProvider;
-        this.mutableClassProvider = ClassProvider.mutable();
-        this.sortedClassProvider.classProviders.add(0, this.mutableClassProvider);
+        this.classProviders = Collections.unmodifiableList(classProviders);
         this.threads = threads;
         this.logger = logger;
         this.debug = debug;
     }
 
     @Override
-    public void run() {
-        logger.accept("Adding Libraries to Inheritance");
-        libraries.forEach(f -> this.mutableClassProvider.addLibrary(f.toPath()));
+    public void setup() {
+        if (this.setup)
+            return;
+
+        this.setup = true;
+
+        ClassProvider.Builder libraryClassesBuilder = ClassProvider.builder().shouldCacheAll(true);
+        this.logger.accept("Adding Libraries to Inheritance");
+        this.libraries.forEach(f -> libraryClassesBuilder.addLibrary(f.toPath()));
+
+        this.libraryClasses = libraryClassesBuilder.build();
+    }
+
+    @Override
+    public void run(File input, File output) {
+        if (!this.setup)
+            throw new IllegalArgumentException("Setup was not called!");
+
+        input = Objects.requireNonNull(input).getAbsoluteFile();
+        output = Objects.requireNonNull(output).getAbsoluteFile();
 
         if (!input.exists())
             throw new IllegalArgumentException("Input file not found: " + input.getAbsolutePath());
@@ -97,6 +113,11 @@ class RenamerImpl implements Renamer {
             throw new RuntimeException("Could not parse input: " + input.getAbsolutePath(), e);
         }
 
+        this.sortedClassProvider.clearCache();
+        ArrayList<ClassProvider> classProviders = new ArrayList<>(this.classProviders);
+        classProviders.add(0, this.libraryClasses);
+        this.sortedClassProvider.classProviders = classProviders;
+
         AsyncHelper async = new AsyncHelper(threads);
         try {
 
@@ -115,9 +136,11 @@ class RenamerImpl implements Renamer {
 
             // Add the original classes to the inheritance map, TODO: Multi-Release somehow?
             logger.accept("Adding input to inheritance map");
+            ClassProvider.Builder inputClassesBuilder = ClassProvider.builder();
             async.consumeAll(ourClasses, ClassEntry::getClassName, c ->
-                this.mutableClassProvider.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
+                inputClassesBuilder.addClass(c.getName().substring(0, c.getName().length() - 6), c.getData())
             );
+            classProviders.add(0, inputClassesBuilder.build());
 
             // Process everything
             logger.accept("Processing entries");

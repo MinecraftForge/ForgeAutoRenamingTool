@@ -102,11 +102,9 @@ public class Main {
 
         File inputF = options.valueOf(inputO);
         log.accept("input: " + inputF.getAbsolutePath());
-        builder.input(inputF);
 
         File outputF = options.has(outputO) ? options.valueOf(outputO) : inputF;
         log.accept("output: " + outputF.getAbsolutePath());
-        builder.output(outputF);
 
         log.accept("threads: " + options.valueOf(threadsO));
         builder.threads(options.valueOf(threadsO));
@@ -171,7 +169,8 @@ public class Main {
         }
 
         try (Renamer renamer = builder.build()) {
-            renamer.run();
+            renamer.setup();
+            renamer.run(inputF, outputF);
         }
     }
 

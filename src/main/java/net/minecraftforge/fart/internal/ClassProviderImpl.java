@@ -1,39 +1,24 @@
-/*
- * Forge Auto Renaming Tool
- * Copyright (c) 2021
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation version 2.1
- * of the License.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- */
-
 package net.minecraftforge.fart.internal;
 
-import static org.objectweb.asm.Opcodes.*;
+import net.minecraftforge.fart.api.ClassProvider;
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,69 +27,55 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.MethodNode;
+import static org.objectweb.asm.Opcodes.*;
 
-import net.minecraftforge.fart.api.ClassProvider;
+class ClassProviderImpl implements ClassProvider {
+    /**
+     * A list of the open (ZIP) filesystems.
+     */
+    private final List<FileSystem> fileSystems;
+    /**
+     * Holds a map of ZIP entry name / full classname -> path to the class file.
+     * Always uses {@code /} for path delimiters.
+     */
+    private final Map<String, Path> sources;
+    /**
+     * Only holds classes explicitly added through the builder with their raw class bytes.
+     */
+    private final Map<String, Optional<? extends IClassInfo>> classInfos;
+    /**
+     * Optionally caches all class infos returned by this implementation, if not null.
+     */
+    @Nullable
+    private final Map<String, Optional<? extends IClassInfo>> classCache;
 
-public class MutableClassProviderImpl implements ClassProvider.Mutable {
-    private final List<FileSystem> fileSystems = new ArrayList<>();
-    private final Map<String, Path> sources = new HashMap<>();
-    private final Map<String, Optional<? extends IClassInfo>> classCache = new ConcurrentHashMap<>();
-
-    public MutableClassProviderImpl() {}
-
-    @Override
-    public void addLibrary(Path path) {
-        try {
-            Path libraryDir;
-            if (Files.isDirectory(path)) {
-                libraryDir = path;
-            } else {
-                FileSystem zipFs = FileSystems.newFileSystem(path, (ClassLoader) null);
-                this.fileSystems.add(zipFs);
-                libraryDir = zipFs.getPath("/");
-            }
-
-            try (Stream<Path> walker = Files.walk(libraryDir)) {
-                walker.forEach(fullPath -> {
-                    Path relativePath = libraryDir.relativize(fullPath);
-                    String pathName = relativePath.toString().replace('\\', '/');
-                    if (!pathName.endsWith(".class") || pathName.startsWith("META-INF"))
-                        return;
-                    this.sources.putIfAbsent(pathName.substring(0, pathName.length() - 6), fullPath);
-                });
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Could not add library: " + path.toAbsolutePath(), e);
-        }
+    ClassProviderImpl(List<FileSystem> fileSystems, Map<String, Path> sources, Map<String, Optional<? extends IClassInfo>> classInfos, boolean cacheAll) {
+        this.fileSystems = Collections.unmodifiableList(fileSystems);
+        this.sources = Collections.unmodifiableMap(sources);
+        this.classInfos = Collections.unmodifiableMap(classInfos);
+        this.classCache = cacheAll ? new ConcurrentHashMap<>() : null;
     }
 
     @Override
     public Optional<? extends IClassInfo> getClass(String name) {
-        if (this.classCache.containsKey(name))
-            return this.classCache.get(name);
-
-        Path source = this.sources.get(name);
-        if (source != null) {
-            try {
-                byte[] data = Util.toByteArray(Files.newInputStream(source));
-                return Optional.of(new ClassInfo(data));
-            } catch (IOException e) {
-                throw new RuntimeException("Could not get data to compute class info in file: " + source.toAbsolutePath(), e);
-            }
-        }
-
-        return Optional.empty();
+        return this.classCache != null ? this.classCache.computeIfAbsent(name, this::computeClassInfo) : computeClassInfo(name);
     }
 
-    @Override
-    public void addClass(String name, byte[] value) {
-        this.classCache.computeIfAbsent(name, k -> Optional.of(new ClassInfo(value)));
+    private Optional<? extends IClassInfo> computeClassInfo(String name) {
+        if (this.classInfos.containsKey(name))
+            return this.classInfos.get(name);
+
+        Path source = this.sources.get(name);
+
+        if (source == null)
+            return Optional.empty();
+
+        try {
+            byte[] data = Util.toByteArray(Files.newInputStream(source));
+            return Optional.of(new ClassInfo(data));
+        } catch (IOException e) {
+            throw new RuntimeException("Could not get data to compute class info in file: " + source.toAbsolutePath(), e);
+        }
     }
 
     @Override

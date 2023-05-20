@@ -17,7 +17,7 @@ public class ClassLoaderClassProvider implements ClassProvider {
     public Optional<? extends IClassInfo> getClass(String name) {
         try {
             Class<?> cls = Class.forName(name.replace('/', '.'), false, this.classLoader);
-            return Optional.of(new MutableClassProviderImpl.ClassInfo(cls));
+            return Optional.of(new ClassProviderImpl.ClassInfo(cls));
         } catch (ClassNotFoundException | NoClassDefFoundError ex) {
             return Optional.empty();
         }

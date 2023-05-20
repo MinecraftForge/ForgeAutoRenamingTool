@@ -20,7 +20,7 @@
 package net.minecraftforge.fart.api;
 
 import net.minecraftforge.fart.internal.ClassLoaderClassProvider;
-import net.minecraftforge.fart.internal.MutableClassProviderImpl;
+import net.minecraftforge.fart.internal.ClassProviderBuilderImpl;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
@@ -39,14 +39,14 @@ import java.util.Optional;
  */
 public interface ClassProvider extends Closeable {
     /**
-     * Creates a default mutable instance.
+     * Creates a default instance of a {@link ClassProvider.Builder}.
      * <p>
      * The default supported library paths are ZIP files and directories.
-     * Upon calling {@link Mutable#addLibrary(Path)}, the path will be walked for all class files and stored.
+     * Upon calling {@link Builder#addLibrary(Path)}, the path will be walked for all class files and stored.
      * Like a class path, entries added earlier take precedence over later entries with the same name.
      */
-    static Mutable mutable() {
-        return new MutableClassProviderImpl();
+    public static Builder builder() {
+        return new ClassProviderBuilderImpl();
     }
 
     /**
@@ -76,27 +76,43 @@ public interface ClassProvider extends Closeable {
     Optional<? extends IClassInfo> getClass(String cls);
 
     /**
-     * This class provider is a mutable variant of {@link ClassProvider} that allows
-     * adding libraries and class bytes.
+     * A {@code ClassProvider.Builder} is used to configure and construct a {@link ClassProvider}.
      */
-    public interface Mutable extends ClassProvider {
+    public interface Builder {
         /**
-         * Adds a library to the sources of this mutable class provider.
+         * Adds a library to the sources of this builder.
          * The implementation is free to accept or not accept paths of any kind.
          * Libraries are used when querying class information.
          *
          * @param path the path object
+         * @return this builder
          */
-        void addLibrary(Path path);
+        Builder addLibrary(Path path);
 
         /**
-         * Adds class bytes for a class to this mutable class provider.
+         * Adds class bytes for a class to this builder.
          * This may be an optional operation depending on the implementation.
          *
          * @param cls the fully resolved classname, see {@link Type#getInternalName()}
          * @param data the class bytes
+         * @return this builder
          */
-        void addClass(String cls, byte[] data);
+        Builder addClass(String cls, byte[] data);
+
+        /**
+         * Sets whether this class provider should cache all generated class infos.
+         * This can speed up subsequent accesses to the same class info, but will use more memory.
+         *
+         * @return this builder
+         */
+        Builder shouldCacheAll(boolean value);
+
+        /**
+         * Builds the {@link ClassProvider} instance based on this configured builder.
+         *
+         * @return the built {@link ClassProvider}
+         */
+        ClassProvider build();
     }
 
     /**

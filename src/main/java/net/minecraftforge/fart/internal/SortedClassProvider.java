@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 class SortedClassProvider implements ClassProvider {
-    final List<ClassProvider> classProviders;
+    List<ClassProvider> classProviders;
     private final Consumer<String> log;
     private final Map<String, Optional<? extends IClassInfo>> classCache = new ConcurrentHashMap<>();
 
@@ -35,6 +35,10 @@ class SortedClassProvider implements ClassProvider {
         this.log.accept("Can't Find Class: " + name);
 
         return Optional.empty();
+    }
+
+    void clearCache() {
+        this.classCache.clear();
     }
 
     @Override

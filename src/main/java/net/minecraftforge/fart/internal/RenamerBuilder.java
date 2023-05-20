@@ -34,8 +34,6 @@ import net.minecraftforge.srgutils.IMappingFile;
 import static java.util.Objects.requireNonNull;
 
 public class RenamerBuilder implements Builder {
-    private File input;
-    private File output;
     private final List<File> libraries = new ArrayList<>();
     private final List<ClassProvider> classProviders = new ArrayList<>();
     private final List<Transformer.Factory> transformerFactories = new ArrayList<>();
@@ -43,18 +41,6 @@ public class RenamerBuilder implements Builder {
     private boolean withJvmClasspath = false;
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
-
-    @Override
-    public Builder input(File value) {
-        this.input = value;
-        return this;
-    }
-
-    @Override
-    public Builder output(File value) {
-        this.output = value;
-        return this;
-    }
 
     @Override
     public Builder lib(File value) {
@@ -80,6 +66,7 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Builder withJvmClasspath() {
+        // We use a property to ensure the JVM classpath is always added last
         this.withJvmClasspath = true;
         return this;
     }
@@ -116,10 +103,11 @@ public class RenamerBuilder implements Builder {
 
     @Override
     public Renamer build() {
+        List<ClassProvider> classProviders = new ArrayList<>(this.classProviders);
         if (this.withJvmClasspath)
-            this.classProviders.add(ClassProvider.fromJvmClasspath());
+            classProviders.add(ClassProvider.fromJvmClasspath());
 
-        SortedClassProvider sortedClassProvider = new SortedClassProvider(this.classProviders, this.logger);
+        SortedClassProvider sortedClassProvider = new SortedClassProvider(classProviders, this.logger);
         final Transformer.Context ctx = new Transformer.Context() {
             @Override
             public Consumer<String> getLog() {
@@ -141,6 +129,6 @@ public class RenamerBuilder implements Builder {
         for (Transformer.Factory factory : transformerFactories) {
             transformers.add(requireNonNull(factory.create(ctx), "output of " + factory));
         }
-        return new RenamerImpl(input, output, libraries, transformers, sortedClassProvider, threads, logger, debug);
+        return new RenamerImpl(libraries, transformers, sortedClassProvider, classProviders, threads, logger, debug);
     }
 }
