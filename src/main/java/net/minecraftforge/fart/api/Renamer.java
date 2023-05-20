@@ -30,20 +30,9 @@ import net.minecraftforge.fart.internal.RenamerBuilder;
  */
 public interface Renamer extends Closeable {
     /**
-     * Sets up the renamer for running.
-     * This involves IO operations that are not specific
-     * to any one input or output JAR file.
-     * <p>
-     * Running setup is required before {@link #run(File, File)}.
-     * Running it again is a no-op.
-     */
-    void setup();
-
-    /**
      * Runs the renamer and all registered transformers on the input JAR file,
      * and then outputs it to the output JAR file.
      * This method is guaranteed to be repeatable with multiple inputs and outputs.
-     * Must run {@link #setup()} before calling this method the first time.
      *
      * @param input the input JAR file to process
      * @param output the output JAR file location

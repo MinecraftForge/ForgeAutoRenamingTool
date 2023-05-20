@@ -67,8 +67,7 @@ class RenamerImpl implements Renamer {
         this.debug = debug;
     }
 
-    @Override
-    public void setup() {
+    private void setup() {
         if (this.setup)
             return;
 
@@ -84,7 +83,7 @@ class RenamerImpl implements Renamer {
     @Override
     public void run(File input, File output) {
         if (!this.setup)
-            throw new IllegalArgumentException("Setup was not called!");
+            this.setup();
 
         input = Objects.requireNonNull(input).getAbsoluteFile();
         output = Objects.requireNonNull(output).getAbsoluteFile();

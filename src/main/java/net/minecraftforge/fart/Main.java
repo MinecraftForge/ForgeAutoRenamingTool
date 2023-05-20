@@ -169,7 +169,6 @@ public class Main {
         }
 
         try (Renamer renamer = builder.build()) {
-            renamer.setup();
             renamer.run(inputF, outputF);
         }
     }
