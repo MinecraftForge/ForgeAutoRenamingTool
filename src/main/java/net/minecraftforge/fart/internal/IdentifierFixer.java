@@ -40,10 +40,6 @@ public final class IdentifierFixer extends OptionalChangeTransformer {
             this.config = config;
         }
 
-        public boolean madeChange() {
-            return this.madeChange;
-        }
-
         @Override
         public final MethodVisitor visitMethod(final int access, final String name, final String descriptor, final String signature, final String[] exceptions) {
             MethodVisitor parent = super.visitMethod(access, name, descriptor, signature, exceptions);
