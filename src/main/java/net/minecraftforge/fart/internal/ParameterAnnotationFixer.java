@@ -19,152 +19,78 @@
 
 package net.minecraftforge.fart.internal;
 
-import static org.objectweb.asm.Opcodes.*;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Consumer;
-
-import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InnerClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
-import net.minecraftforge.fart.api.Transformer;
+import static org.objectweb.asm.Opcodes.*;
 
-public final class ParameterAnnotationFixer implements Transformer {
-    private final Consumer<String> log;
-    private final Consumer<String> debug;
+public final class ParameterAnnotationFixer extends OptionalChangeTransformer {
+    public static final ParameterAnnotationFixer INSTANCE = new ParameterAnnotationFixer();
 
-    public ParameterAnnotationFixer(Consumer<String> log, Consumer<String> debug) {
-        this.log = log;
-        this.debug = debug;
+    private ParameterAnnotationFixer() {
+        super(Fixer::new);
     }
 
-    @Override
-    public ClassEntry process(ClassEntry entry) {
-        final ClassReader reader = new ClassReader(entry.getData());
-        final ClassWriter writer = new ClassWriter(reader, 0);
-        final ClassNode node = new ClassNode();
-        reader.accept(new Visitor(node), 0);
-        node.accept(writer);
-        return ClassEntry.create(entry.getName(), entry.getTime(), writer.toByteArray());
-    }
+    private static class Fixer extends OptionalChangeTransformer.ClassFixer {
+        private String name;
+        private boolean isEnum;
+        private String outerName;
 
-    private class Visitor extends ClassVisitor {
-        private final ClassNode node;
-
-        public Visitor(ClassNode cn) {
-            super(RenamerImpl.MAX_ASM_VERSION, cn);
-            this.node = cn;
-        }
-
-        private void debug(String message) {
-            debug.accept(message);
-        }
-
-        private void log(String message) {
-            log.accept(message);
+        public Fixer(ClassVisitor parent) {
+            super(parent);
         }
 
         @Override
-        public void visitEnd() {
-            super.visitEnd();
+        public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+            this.name = name;
+            if ((access & ACC_ENUM) != 0)
+                this.isEnum = true;
 
-            Type[] syntheticParams = getExpectedSyntheticParams(node);
-            if (syntheticParams != null) {
-                for (MethodNode mn : node.methods) {
-                    if (mn.name.equals("<init>"))
-                        processConstructor(node, mn, syntheticParams);
-                }
-            }
+            super.visit(version, access, name, signature, superName, interfaces);
         }
 
-        /**
-        * Checks if the given class might have synthetic parameters in the
-        * constructor. There are two cases where this might happen:
-        * <ol>
-        * <li>If the given class is an inner class, the first parameter is the
-        * instance of the outer class.</li>
-        * <li>If the given class is an enum, the first parameter is the enum
-        * constant name and the second parameter is its ordinal.</li>
-        * </ol>
-        *
-        * @return An array of types for synthetic parameters if the class can have
-        *         synthetic parameters, otherwise null.
-        */
-        private Type[] getExpectedSyntheticParams(ClassNode cls) {
-            // Check for enum
-            // http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javac/comp/Lower.java#l2866
-            if ((cls.access & ACC_ENUM) != 0) {
-                debug("  Considering " + cls.name + " for extra parameter annotations as it is an enum");
-                return new Type[] { Type.getObjectType("java/lang/String"), Type.INT_TYPE };
-            }
-
-            // Check for inner class
-            InnerClassNode info = null;
-            for (InnerClassNode node : cls.innerClasses) { // note: cls.innerClasses is never null
-                if (node.name.equals(cls.name)) {
-                    info = node;
-                    break;
+        @Override
+        public void visitInnerClass(String name, String outerName, String innerName, int access) {
+            if ((access & (ACC_STATIC | ACC_INTERFACE)) == 0 && this.name.equals(name) && innerName != null) {
+                // We know it is an inner class here
+                if (outerName == null) {
+                    int idx = name.lastIndexOf('$');
+                    if (idx != -1)
+                        this.outerName = name.substring(0, idx);
+                } else {
+                    this.outerName = outerName;
                 }
             }
-            // http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javac/code/Symbol.java#l398
-            if (info == null) {
-                debug("  Not considering " + cls.name + " for extra parameter annotations as it is not an inner class");
-                return null; // It's not an inner class
-            }
-            if ((info.access & (ACC_STATIC | ACC_INTERFACE)) != 0) {
-                debug("  Not considering " + cls.name + " for extra parameter annotations as is an interface or static");
-                return null; // It's static or can't have a constructor
-            }
 
-            // http://hg.openjdk.java.net/jdk8/jdk8/langtools/file/1ff9d5118aae/src/share/classes/com/sun/tools/javac/jvm/ClassReader.java#l2011
-            if (info.innerName == null) {
-                debug("  Not considering " + cls.name + " for extra parameter annotations as it is annonymous");
-                return null; // It's an anonymous class
-            }
-
-            if (info.outerName == null) {
-                int idx = cls.name.lastIndexOf('$');
-                if (idx == -1) {
-                    debug("  Not cosidering " + cls.name + " for extra parameter annotations as it does not appear to be an inner class");
-                    return null;
-                }
-                debug("  Considering " + cls.name + " for extra parameter annotations as its name appears to be an inner class of " + cls.name.substring(0, idx));
-                return new Type[] { Type.getObjectType(cls.name.substring(0, idx)) };
-            }
-
-            debug("  Considering " + cls.name + " for extra parameter annotations as it is an inner class of " + info.outerName);
-            return new Type[] { Type.getObjectType(info.outerName) };
+            super.visitInnerClass(name, outerName, innerName, access);
         }
 
-        /**
-        * Removes the parameter annotations for the given synthetic parameters,
-        * if there are parameter annotations and the synthetic parameters exist.
-        */
-        private void processConstructor(ClassNode cls, MethodNode mn, Type[] syntheticParams) {
-            String methodInfo = mn.name + mn.desc + " in " + cls.name;
-            Type[] params = Type.getArgumentTypes(mn.desc);
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+            MethodVisitor methodVisitor = super.visitMethod(access, name, descriptor, signature, exceptions);
 
-            if (beginsWith(params, syntheticParams)) {
-                mn.visibleParameterAnnotations = process(methodInfo, "RuntimeVisibleParameterAnnotations", params.length, syntheticParams.length, mn.visibleParameterAnnotations);
-                mn.invisibleParameterAnnotations = process(methodInfo, "RuntimeInvisibleParameterAnnotations", params.length, syntheticParams.length, mn.invisibleParameterAnnotations);
-                // ASM uses this value, not the length of the array
-                // Note that this was added in ASM 6.1
-                if (mn.visibleParameterAnnotations != null)
-                    mn.visibleAnnotableParameterCount = mn.visibleParameterAnnotations.length;
-                if (mn.invisibleParameterAnnotations != null)
-                    mn.invisibleAnnotableParameterCount = mn.invisibleParameterAnnotations.length;
-            } else
-                log("Unexpected lack of synthetic args to the constructor: expected " + Arrays.toString(syntheticParams) + " at the start of " + methodInfo);
+            if (!name.equals("<init>"))
+                return methodVisitor;
+
+            Type[] syntheticParams = null;
+
+            if (this.isEnum) {
+                syntheticParams = new Type[]{Type.getObjectType("java/lang/String"), Type.INT_TYPE};
+            } else if (this.outerName != null) {
+                syntheticParams = new Type[]{Type.getObjectType(this.outerName)};
+            }
+
+            if (syntheticParams == null)
+                return methodVisitor;
+
+            Type[] argumentTypes = Type.getArgumentTypes(descriptor);
+            return beginsWith(argumentTypes, syntheticParams) ? new MethodFixer(argumentTypes.length, syntheticParams.length, methodVisitor) : methodVisitor;
         }
 
-        private boolean beginsWith(Type[] values, Type[] prefix) {
+        private static boolean beginsWith(Type[] values, Type[] prefix) {
             if (values.length < prefix.length)
                 return false;
             for (int i = 0; i < prefix.length; i++) {
@@ -174,39 +100,79 @@ public final class ParameterAnnotationFixer implements Transformer {
             return true;
         }
 
-        /**
-        * Removes annotation nodes corresponding to synthetic parameters, after
-        * the existence of synthetic parameters has already been checked.
-        *
-        * @param methodInfo
-        *            A description of the method, for logging
-        * @param attributeName
-        *            The name of the attribute, for logging
-        * @param numParams
-        *            The number of parameters in the method
-        * @param numSynthetic
-        *            The number of synthetic parameters (should not be 0)
-        * @param annotations
-        *            The current array of annotation nodes, may be null
-        * @return The new array of annotation nodes, may be null
-        */
-        private List<AnnotationNode>[] process(String methodInfo, String attributeName, int numParams, int numSynthetic, List<AnnotationNode>[] annotations) {
-            if (annotations == null) {
-                debug("    " + methodInfo + " does not have a " + attributeName + " attribute");
-                return null;
+        private class MethodFixer extends MethodVisitor {
+            private final int argumentsLength;
+            private final int numSynthetic;
+            private final AnnotationHolder[] annotations;
+            private int parameterAnnotationCount;
+            private boolean visibleParamAnnotations;
+            private boolean hasParamAnnotation;
+
+            MethodFixer(int argumentsLength, int numSynthetic, MethodVisitor methodVisitor) {
+                super(RenamerImpl.MAX_ASM_VERSION, methodVisitor);
+                this.argumentsLength = argumentsLength;
+                this.numSynthetic = numSynthetic;
+                this.annotations = new AnnotationHolder[argumentsLength];
             }
 
-            int numAnnotations = annotations.length;
-            if (numParams == numAnnotations) {
-                log("Found extra " + attributeName + " entries in " + methodInfo + ": removing " + numSynthetic);
-                return Arrays.copyOfRange(annotations, numSynthetic, numAnnotations);
-            } else if (numParams == numAnnotations - numSynthetic) {
-                debug("Number of " + attributeName + " entries in " + methodInfo + " is already as we want");
-                return annotations;
-            } else {
-                log("Unexpected number of " + attributeName + " entries in " + methodInfo + ": " + numAnnotations);
-                return annotations;
+            @Override
+            public void visitAnnotableParameterCount(int parameterCount, boolean visible) {
+                this.parameterAnnotationCount = parameterCount;
+                this.visibleParamAnnotations = visible;
+
+                // Don't call super yet
             }
+
+            @Override
+            public AnnotationVisitor visitParameterAnnotation(int parameter, String descriptor, boolean visible) {
+                this.hasParamAnnotation = true;
+                AnnotationNode node = new AnnotationNode(RenamerImpl.MAX_ASM_VERSION, descriptor);
+                this.annotations[parameter] = new AnnotationHolder(parameter, descriptor, visible, node);
+                return node; // Don't call super yet
+            }
+
+            @Override
+            public void visitEnd() {
+                int offset = 0;
+                if (this.hasParamAnnotation && this.parameterAnnotationCount == this.argumentsLength) {
+                    // The ProGuard bug only applies if parameterAnnotationCount and the length of the argument types exactly match.
+                    // See https://github.com/Guardsquare/proguard/blob/b0db59bc59fca1fc3f0083dd2e354a71b544d77c/core/src/proguard/classfile/io/ProgramClassReader.java#L745 for the bug.
+                    // parameterAnnotationCount is the number of parameter annotations read from the bytecode, whereas the length of the argument types is the number of parameters.
+                    // The ProGuard bug always forcefully reassigns the parameterCount from bytecode to the length of the argument types alongside the other problematic bits of code.
+                    // If it didn't do that, then we know the buggy ProGuard version is not in use.
+
+                    offset = this.numSynthetic;
+                }
+
+                if (offset != 0)
+                    Fixer.this.madeChange = true;
+
+                // Offer the data to the parent visitor; potentially with our fixes applied
+                super.visitAnnotableParameterCount(this.parameterAnnotationCount - offset, this.visibleParamAnnotations);
+                for (AnnotationHolder holder : this.annotations) {
+                    if (holder != null) {
+                        int parameter = holder.parameter - offset;
+                        if (parameter >= 0) // Although synthetic parameters should never have annotations, let's ensure against out-of-bounds just in case
+                            holder.node.accept(super.visitParameterAnnotation(parameter, holder.descriptor, holder.visible));
+                    }
+                }
+
+                super.visitEnd();
+            }
+        }
+    }
+
+    private static class AnnotationHolder {
+        final int parameter;
+        final String descriptor;
+        final boolean visible;
+        final AnnotationNode node;
+
+        AnnotationHolder(int parameter, String descriptor, boolean visible, AnnotationNode node) {
+            this.parameter = parameter;
+            this.descriptor = descriptor;
+            this.visible = visible;
+            this.node = node;
         }
     }
 }

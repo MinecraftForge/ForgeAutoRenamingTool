@@ -106,7 +106,7 @@ public interface Transformer {
      * @return a factory for a parameter annotation-fixing transformer
      */
     public static Factory parameterAnnotationFixerFactory() {
-        return ctx -> new ParameterAnnotationFixer(ctx.getLog(), ctx.getDebug());
+        return ctx -> ParameterAnnotationFixer.INSTANCE;
     }
 
     /**
