@@ -1,20 +1,6 @@
 /*
- * Forge Auto Renaming Tool
- * Copyright (c) 2021
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation version 2.1
- * of the License.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Copyright (c) Forge Development LLC and contributors
+ * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 package net.minecraftforge.fart.internal;
@@ -183,12 +169,12 @@ class EnhancedRemapper extends Remapper {
                 mcls.getMethods().stream().map(m -> new MMethod(null, m)).forEach(m -> methods.put(m.getKey(), Optional.of(m)));
             }
 
-            for (MClass cls : parents) {
-                for (Optional<MField> fldo : cls.getFields()) {
-                    if (!fldo.isPresent())
+            for (MClass parentCls : parents) {
+                for (Optional<MField> fldOpt : parentCls.getFields()) {
+                    if (!fldOpt.isPresent())
                         continue;
 
-                    MField fld = fldo.orElse(null);
+                    MField fld = fldOpt.get();
                     Optional<MField> existing = this.fields.get(fld.getKey());
                     if (existing == null || !existing.isPresent()) {
                         /* There are some weird cases where a field will be referenced as if it were owned by the current class,
@@ -197,11 +183,11 @@ class EnhancedRemapper extends Remapper {
                          *
                          * https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-5.html#jvms-5.4.3.2
                          */
-                        this.fields.put(fld.getKey(), fldo);
+                        this.fields.put(fld.getKey(), fldOpt);
                     } else {
                         /* Is there any case where we would ever override an existing field?
                          * We don't inherit renames like we do with methods.
-                         * This loop is just to popular the parent field lists so we can
+                         * This loop is just to populate the parent field lists so we can
                          * have a cache. Trading memory for faster lookups.
                          *
                          * We could nuke this all, and move this code to the getter
@@ -209,11 +195,11 @@ class EnhancedRemapper extends Remapper {
                     }
                 }
 
-                for (Optional<MMethod> mtdo: cls.getMethods()) {
-                    if (!mtdo.isPresent())
+                for (Optional<MMethod> mtdOpt : parentCls.getMethods()) {
+                    if (!mtdOpt.isPresent())
                         continue;
 
-                    MMethod mtd = mtdo.orElse(null);
+                    MMethod mtd = mtdOpt.get();
                     /* https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-5.html#jvms-5.4.3.3
                      * According to the spec, it does not check access on super classes, but it checks
                      * on interfaces if it is not ACC_PRIVATE or ACC_STATIC.
@@ -238,17 +224,17 @@ class EnhancedRemapper extends Remapper {
                      *   }
                      *----------------------------------------------------
                      */
-                    if (cls.isInterface() && !mtd.isInterfaceInheritable())
+                    if (parentCls.isInterface() && !mtd.isInterfaceInheritable())
                         continue;
 
 
-                    Optional<MMethod> existingO = this.methods.get(mtd.getKey());
-                    if (existingO == null || !existingO.isPresent()) {
+                    Optional<MMethod> existingOpt = this.methods.get(mtd.getKey());
+                    if (existingOpt == null || !existingOpt.isPresent()) {
                         /* If there is none existing, then we pull in what we have found from the parents.
                          * This intentionally uses the same object as the parents so that if we have weird edge
                          * cases, we can migrate the mapping transitively.
                          */
-                        this.methods.put(mtd.getKey(), mtdo);
+                        this.methods.put(mtd.getKey(), mtdOpt);
                     } else {
                         /* If the method exists, lets check if there is a mapping entry in the parent.
                          * If there is, and our current one doesn't have a map entry directly, then
@@ -269,7 +255,7 @@ class EnhancedRemapper extends Remapper {
                          *   class C extends A implements B {}
                          *   MD: B/foo()V B/bar()V
                          */
-                        MMethod existing = existingO.orElse(null);
+                        MMethod existing = existingOpt.get();
                         if (!existing.hasMapping() && !existing.getName().equals(mtd.getMapped())) {
                             if (!existing.getMapped().equals(mtd.getMapped()))
                                 log.accept("Conflicting propagated mapping for " + existing + " from " + mtd + ": " + existing.getMapped() + " -> " + mtd.getMapped());
