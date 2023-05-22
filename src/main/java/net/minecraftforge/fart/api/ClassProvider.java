@@ -50,6 +50,27 @@ public interface ClassProvider extends Closeable {
     }
 
     /**
+     * Creates a class provider which reads class data from the provided library paths.
+     * All queried class infos will be cached for subsequent queries.
+     * <p>
+     * The default supported library paths are ZIP files and directories.
+     * Each path will be walked for all class files and stored in order.
+     * Like a class path, entries added earlier take precedence over later entries with the same name.
+     *
+     * @param paths the paths to read from
+     * @see #builder()
+     */
+    static ClassProvider fromPaths(Path... paths) {
+        Builder builder = builder().shouldCacheAll(true);
+
+        for (Path path : paths) {
+            builder.addLibrary(path);
+        }
+
+        return builder.build();
+    }
+
+    /**
      * Creates a class provider which reads class data from the default classloader that loaded this class.
      */
     static ClassProvider fromJvmClasspath() {

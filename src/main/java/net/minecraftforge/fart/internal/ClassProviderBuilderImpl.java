@@ -48,10 +48,13 @@ public class ClassProviderBuilderImpl implements ClassProvider.Builder {
             Path libraryDir;
             if (Files.isDirectory(path)) {
                 libraryDir = path;
-            } else {
+            } else if (Files.isRegularFile(path)) {
                 FileSystem zipFs = FileSystems.newFileSystem(path, (ClassLoader) null);
                 this.fileSystems.add(zipFs);
                 libraryDir = zipFs.getPath("/");
+            } else {
+                // We can't load it (it doesn't exist)
+                return this;
             }
 
             try (Stream<Path> walker = Files.walk(libraryDir)) {
