@@ -27,6 +27,7 @@ public class RenamerBuilder implements Builder {
     private boolean withJvmClasspath = false;
     private Consumer<String> logger = System.out::println;
     private Consumer<String> debug = s -> {};
+    private boolean collectAbstractParams = true;
 
     @Override
     public Builder lib(File value) {
@@ -37,7 +38,7 @@ public class RenamerBuilder implements Builder {
     @Override
     public Builder map(File value) {
         try {
-            add(Transformer.renamerFactory(IMappingFile.load(value)));
+            add(Transformer.renamerFactory(IMappingFile.load(value), collectAbstractParams));
         } catch (IOException e) {
             throw new RuntimeException("Could not map file: " + value.getAbsolutePath(), e);
         }
@@ -84,6 +85,12 @@ public class RenamerBuilder implements Builder {
     @Override
     public Builder debug(Consumer<String> debug) {
         this.debug = requireNonNull(debug, "debug");
+        return this;
+    }
+
+    @Override
+    public Builder setCollectAbstractParams(boolean collectAbstractParams) {
+        this.collectAbstractParams = collectAbstractParams;
         return this;
     }
 

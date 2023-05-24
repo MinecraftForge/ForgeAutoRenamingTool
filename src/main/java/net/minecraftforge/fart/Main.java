@@ -43,6 +43,7 @@ public class Main {
         OptionSpec<Integer> threadsO = parser.accepts("threads", "Number of threads to use, defaults to processor count.").withRequiredArg().ofType(Integer.class).defaultsTo(Runtime.getRuntime().availableProcessors());
         OptionSpec<File> ffLinesO = parser.accepts("ff-line-numbers", "Applies line number corrections from Fernflower.").withRequiredArg().ofType(File.class);
         OptionSpec<Void> reverseO = parser.accepts("reverse", "Reverse provided mapping file before applying");
+        OptionSpec<Void> disableAbstractParam = parser.accepts("disable-abstract-param", "Disables collection of names of parameters of abstract methods for FernFlower");
         OptionSet options;
         try {
             options = parser.parse(expandArgs(args));
@@ -105,7 +106,7 @@ public class Main {
                 mappings = mappings.reverse();
             }
 
-            builder.add(Transformer.renamerFactory(mappings));
+            builder.add(Transformer.renamerFactory(mappings, !options.has(disableAbstractParam)));
         } else {
             log.accept("Names: null");
         }
