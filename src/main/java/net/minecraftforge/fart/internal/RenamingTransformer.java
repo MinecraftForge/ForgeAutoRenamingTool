@@ -26,8 +26,14 @@ public class RenamingTransformer implements Transformer {
     private static final String ABSTRACT_FILE = "fernflower_abstract_parameter_names.txt";
     private final EnhancedRemapper remapper;
     private final Set<String> abstractParams = ConcurrentHashMap.newKeySet();
+    private final boolean collectAbstractParams;
 
     public RenamingTransformer(ClassProvider classProvider, IMappingFile map, Consumer<String> log) {
+        this(classProvider, map, log, true);
+    }
+
+    public RenamingTransformer(ClassProvider classProvider, IMappingFile map, Consumer<String> log, boolean collectAbstractParams) {
+        this.collectAbstractParams = collectAbstractParams;
         this.remapper = new EnhancedRemapper(classProvider, map, log);
     }
 
@@ -57,10 +63,10 @@ public class RenamingTransformer implements Transformer {
 
     @Override
     public Collection<? extends Entry> getExtras() {
-        if (abstractParams.isEmpty())
+        if (abstractParams.isEmpty() || !collectAbstractParams)
             return Collections.emptyList();
         byte[] data = abstractParams.stream().sorted().collect(Collectors.joining("\n")).getBytes(StandardCharsets.UTF_8);
-        return Arrays.asList(ResourceEntry.create(ABSTRACT_FILE, Entry.STABLE_TIMESTAMP, data));
+        return Collections.singletonList(ResourceEntry.create(ABSTRACT_FILE, Entry.STABLE_TIMESTAMP, data));
     }
 
     void storeNames(String className, String methodName, String methodDescriptor, Collection<String> paramNames) {

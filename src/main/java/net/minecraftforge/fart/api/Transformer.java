@@ -70,10 +70,24 @@ public interface Transformer {
      * Create a transformer that applies mappings as a transformation.
      *
      * @param map the mapping information to remap with
+     * @param collectAbstractParams whether to collect abstract parameter names for FernFlower
      * @return a factory for a renaming transformer
      */
-    public static Factory renamerFactory(IMappingFile map) {
-        return ctx -> new RenamingTransformer(ctx.getClassProvider(), map, ctx.getLog());
+    static Factory renamerFactory(IMappingFile map, boolean collectAbstractParams) {
+        return ctx -> new RenamingTransformer(ctx.getClassProvider(), map, ctx.getLog(), collectAbstractParams);
+    }
+
+    /**
+     * Create a transformer that applies mappings as a transformation.
+     *
+     * @param map the mapping information to remap with
+     * @return a factory for a renaming transformer
+     *
+     * @deprecated use {@link #renamerFactory(IMappingFile, boolean)} insteead
+     */
+    @Deprecated
+    static Factory renamerFactory(IMappingFile map) {
+        return renamerFactory(map, true);
     }
 
     /**

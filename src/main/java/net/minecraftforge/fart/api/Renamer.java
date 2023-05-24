@@ -115,6 +115,13 @@ public interface Renamer extends Closeable {
         Builder debug(Consumer<String> debug);
 
         /**
+         * Sets whether to collect parameter names of abstract methods for FernFlower. Defaults to {@code true}.
+         * @param collectAbstractParams whether to collect parameter names of abstract methods for FernFlower
+         * @return this builder
+         */
+        Builder setCollectAbstractParams(boolean collectAbstractParams);
+
+        /**
          * Builds the {@link Renamer} instance based on this configured builder.
          * The built Renamer is guaranteed to be reusable for multiple runs.
          *
