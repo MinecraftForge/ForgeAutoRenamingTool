@@ -46,7 +46,7 @@ public abstract class EntryImpl implements Transformer.Entry {
                 if (idx == -1)
                     throw new IllegalArgumentException("Invalid versioned class entry: " + name);
                 release = Integer.parseInt(name.substring(start, idx));
-                name = name.substring(start + idx + 1);
+                name = name.substring(idx + 1);
             } else {
                 release = -1;
             }
