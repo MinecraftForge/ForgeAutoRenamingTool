@@ -1,59 +1,47 @@
-buildscript {
-    repositories {
-        mavenCentral()
-        maven { url = 'https://maven.minecraftforge.net/' }
-    }
-    dependencies {
-        classpath  group: 'net.minecraftforge.gradleutils', name: 'GradleUtils', version: '2.+', changing: true
-    }
-}
-
 plugins {
     id 'java-library'
     id 'eclipse'
     id 'maven-publish'
     id 'org.cadixdev.licenser' version '0.6.1'
-    id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'net.minecraftforge.gradleutils' version '2.+'
 }
-apply plugin: 'net.minecraftforge.gradleutils'
 
 group 'net.minecraftforge'
 version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
 println('Version: ' + version)
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(8)
-compileJava.options.encoding = 'UTF-8'
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    withSourcesJar()
+}
 
-ext {
-    CHANGELOG = rootProject.file('build/changelog.txt')
-    REPO = 'ForgeAutoRenamingTool'
-    TITLE = 'Forge Auto Renaming Tool'
-    MANIFEST = manifest{
-        attributes('Main-Class': 'net.minecraftforge.fart.Main')
-        attributes([
+tasks.named('compileJava', JavaCompile).configure {
+    options.encoding = 'UTF-8'
+}
+
+final String REPO = 'ForgeAutoRenamingTool'
+final String TITLE = 'Forge Auto Renaming Tool'
+final MANIFEST = manifest {
+    attributes('Main-Class': 'net.minecraftforge.fart.Main')
+    attributes([
             'Specification-Title':      'ForgeAutoRenamingTool',
             'Specification-Vendor':     'Forge Development LLC',
             'Specification-Version':    gradleutils.gitInfo.tag,
             'Implementation-Title':     'SimpleInstaller',
             'Implementation-Version':   project.version,
             'Implementation-Vendor':    'Forge Development LLC'
-        ] as LinkedHashMap, 'net/minecraftforge/fart/')
-    }
-    INITIAL_CHANGELOG_TAG = '0.1'
+    ], 'net/minecraftforge/fart/')
 }
+final String INITIAL_CHANGELOG_TAG = '0.1'
 
 repositories {
     mavenCentral()
     maven { url = 'https://maven.minecraftforge.net/' }
 }
 
-test {
-    useJUnitPlatform()
-}
-
 license {
     header = file('LICENSE-header.txt')
-    ext.project = TITLE
 }
 
 dependencies {
@@ -71,62 +59,60 @@ dependencies {
 }
 
 
-test {
+tasks.named('test', Test).configure {
   useJUnitPlatform()
   testLogging {
     events 'passed', 'skipped', 'failed'
   }
 }
 
-java.withSourcesJar()
-
-shadowJar {
+tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
     manifest.from(MANIFEST)
     minimize()
 
-    def relocations = [
+    final List<String> relocations = [
             'org.objectweb.asm',
             'net.minecraftforge.srgutils',
             'joptsimple'
     ]
 
-    relocations.forEach {
+    relocations.each {
         relocate it, "net.minecraftforge.fart.relocated.$it"
     }
 }
 
-assemble.dependsOn shadowJar
+tasks.named('assemble').configure {
+    dependsOn shadowJar
+}
 
 publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            pom {
-                name = TITLE
-                description = 'A tool that renames java bytecode elements.'
+    publications.register('mavenJava', MavenPublication) {
+        from components.java
+        pom {
+            name = TITLE
+            description = 'A tool that renames java bytecode elements.'
+            url = "https://github.com/MinecraftForge/${REPO}"
+            scm {
                 url = "https://github.com/MinecraftForge/${REPO}"
-                scm {
-                    url = "https://github.com/MinecraftForge/${REPO}"
-                    connection = "scm:git:git://github.com/MinecraftForge/${REPO}.git"
-                    developerConnection = "scm:git:git@github.com:MinecraftForge/${REPO}.git"
-                }
-                issueManagement {
-                    system = 'github'
-                    url = "https://github.com/MinecraftForge/${REPO}/issues"
-                }
+                connection = "scm:git:git://github.com/MinecraftForge/${REPO}.git"
+                developerConnection = "scm:git:git@github.com:MinecraftForge/${REPO}.git"
+            }
+            issueManagement {
+                system = 'github'
+                url = "https://github.com/MinecraftForge/${REPO}/issues"
+            }
 
-                licenses {
-                    license {
-                        name = 'LGPLv2.1'
-                        url = 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt'
-                    }
+            licenses {
+                license {
+                    name = 'LGPLv2.1'
+                    url = 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt'
                 }
+            }
 
-                developers {
-                    developer {
-                        id = 'LexManos'
-                        name = 'LexManos'
-                    }
+            developers {
+                developer {
+                    id = 'LexManos'
+                    name = 'LexManos'
                 }
             }
         }
