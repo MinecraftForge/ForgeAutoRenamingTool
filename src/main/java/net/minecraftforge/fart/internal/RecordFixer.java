@@ -32,6 +32,11 @@ public class RecordFixer extends OptionalChangeTransformer {
         @Override
         public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
             this.isRecord = "java/lang/Record".equals(superName);
+            if (isRecord && ((access & Opcodes.ACC_RECORD) == 0)) {
+                // ASM Uses this to determine if it should write the records components at all, which is necessary even if empty.
+                access |= Opcodes.ACC_RECORD;
+                this.madeChange = true;
+            }
             super.visit(version, access, name, signature, superName, interfaces);
         }
 
