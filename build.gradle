@@ -10,7 +10,7 @@ plugins {
     id 'net.minecraftforge.gradleutils' version '2.+'
 }
 
-group 'net.minecraftforge'
+group = 'net.minecraftforge'
 version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
 println "Version: $version"
 
@@ -44,6 +44,20 @@ tasks.named('test', Test).configure {
     useJUnitPlatform()
     testLogging {
         events 'passed', 'skipped', 'failed'
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes('Main-Class': 'net.minecraftforge.fart.Main')
+        attributes([
+                'Specification-Title':      'ForgeAutoRenamingTool',
+                'Specification-Vendor':     'Forge Development LLC',
+                'Specification-Version':    gradleutils.gitInfo.tag,
+                'Implementation-Title':     'ForgeAutoRenamingTool',
+                'Implementation-Version':   project.version,
+                'Implementation-Vendor':    'Forge Development LLC'
+        ], 'net/minecraftforge/fart/')
     }
 }
 
