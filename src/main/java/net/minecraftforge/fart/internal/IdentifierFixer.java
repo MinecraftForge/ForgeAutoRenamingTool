@@ -2,7 +2,6 @@
  * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
-
 package net.minecraftforge.fart.internal;
 
 import java.util.HashMap;
@@ -46,7 +45,7 @@ public final class IdentifierFixer extends OptionalChangeTransformer {
                         if ((char)0x2603 == name.charAt(0))
                             valid = false;
                     } else {
-                        if (name.isEmpty() || !Character.isJavaIdentifierStart(name.charAt(0)))
+                        if (!Character.isJavaIdentifierStart(name.charAt(0)))
                             valid = false;
                         else  {
                             for (int x = 1; x < name.length(); x++) {

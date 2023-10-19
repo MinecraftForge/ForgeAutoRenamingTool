@@ -2,7 +2,6 @@
  * Copyright (c) Forge Development LLC and contributors
  * SPDX-License-Identifier: LGPL-2.1-only
  */
-
 package net.minecraftforge.fart.internal;
 
 import net.minecraftforge.fart.api.ClassProvider;
@@ -140,7 +139,7 @@ class ClassProviderImpl implements ClassProvider {
 
             Field[] flds = node.getDeclaredFields();
             if (flds != null && flds.length > 0) {
-                this.fields = Collections.unmodifiableMap(Arrays.asList(flds).stream().map(FieldInfo::new)
+                this.fields = Collections.unmodifiableMap(Arrays.stream(flds).map(FieldInfo::new)
                     .collect(Collectors.toMap(FieldInfo::getName, Function.identity())));
             } else
                 this.fields = null;
@@ -344,7 +343,7 @@ class ClassProviderImpl implements ClassProvider {
                 if (ret.isEmpty())
                     toString = "default";
                 else
-                    toString = ret.stream().collect(Collectors.joining(" "));
+                    toString = String.join(" ", ret);
             }
             return toString;
         }
