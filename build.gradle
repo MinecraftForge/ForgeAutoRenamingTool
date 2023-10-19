@@ -23,7 +23,7 @@ java {
 
 repositories {
     mavenCentral()
-    gradleutils.forgeMaven
+    maven gradleutils.forgeMaven
 }
 
 dependencies {
