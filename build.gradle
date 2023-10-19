@@ -1,3 +1,6 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import net.minecraftforge.gradleutils.PomUtils
+
 plugins {
     id 'java-library'
     id 'eclipse'
@@ -9,39 +12,18 @@ plugins {
 
 group 'net.minecraftforge'
 version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
-println('Version: ' + version)
+println "Version: $version"
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
     withSourcesJar()
 }
 
-tasks.named('compileJava', JavaCompile).configure {
-    options.encoding = 'UTF-8'
-}
-
-final String REPO = 'ForgeAutoRenamingTool'
-final String TITLE = 'Forge Auto Renaming Tool'
-final MANIFEST = manifest {
-    attributes('Main-Class': 'net.minecraftforge.fart.Main')
-    attributes([
-            'Specification-Title':      'ForgeAutoRenamingTool',
-            'Specification-Vendor':     'Forge Development LLC',
-            'Specification-Version':    gradleutils.gitInfo.tag,
-            'Implementation-Title':     'SimpleInstaller',
-            'Implementation-Version':   project.version,
-            'Implementation-Vendor':    'Forge Development LLC'
-    ], 'net/minecraftforge/fart/')
-}
-final String INITIAL_CHANGELOG_TAG = '0.1'
-
 repositories {
     mavenCentral()
-    maven { url = 'https://maven.minecraftforge.net/' }
-}
-
-license {
-    header = file('LICENSE-header.txt')
+    gradleutils.forgeMaven
 }
 
 dependencies {
@@ -51,23 +33,33 @@ dependencies {
     implementation 'org.ow2.asm:asm-commons:9.5'
     implementation 'org.ow2.asm:asm-tree:9.5'
 
-    testImplementation(platform('org.junit:junit-bom:5.8.1'))
-    testImplementation('org.junit.jupiter:junit-jupiter')
-    testImplementation('org.powermock:powermock-core:2.0.9')
+    testImplementation platform('org.junit:junit-bom:5.8.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.powermock:powermock-core:2.0.9'
 
     compileOnly 'org.jetbrains:annotations:24.0.1'
 }
 
-
 tasks.named('test', Test).configure {
-  useJUnitPlatform()
-  testLogging {
-    events 'passed', 'skipped', 'failed'
-  }
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+    }
 }
 
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
-    manifest.from(MANIFEST)
+tasks.named('shadowJar', ShadowJar).configure {
+    manifest {
+        attributes('Main-Class': 'net.minecraftforge.fart.Main')
+        attributes([
+                'Specification-Title':      'ForgeAutoRenamingTool',
+                'Specification-Vendor':     'Forge Development LLC',
+                'Specification-Version':    gradleutils.gitInfo.tag,
+                'Implementation-Title':     'ForgeAutoRenamingTool',
+                'Implementation-Version':   project.version,
+                'Implementation-Vendor':    'Forge Development LLC'
+        ], 'net/minecraftforge/fart/')
+    }
+
     minimize()
 
     final List<String> relocations = [
@@ -82,46 +74,43 @@ tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
 }
 
 tasks.named('assemble').configure {
-    dependsOn shadowJar
+    dependsOn 'shadowJar'
+}
+
+tasks.named('compileJava', JavaCompile).configure {
+    options.encoding = 'UTF-8'
+}
+
+changelog {
+    fromTag '0.1'
+}
+
+license {
+    header = file('LICENSE-header.txt')
+    newLine = false
+    exclude '**/*.properties'
 }
 
 publishing {
     publications.register('mavenJava', MavenPublication) {
         from components.java
-        pom {
-            name = TITLE
-            description = 'A tool that renames java bytecode elements.'
-            url = "https://github.com/MinecraftForge/${REPO}"
-            scm {
-                url = "https://github.com/MinecraftForge/${REPO}"
-                connection = "scm:git:git://github.com/MinecraftForge/${REPO}.git"
-                developerConnection = "scm:git:git@github.com:MinecraftForge/${REPO}.git"
-            }
-            issueManagement {
-                system = 'github'
-                url = "https://github.com/MinecraftForge/${REPO}/issues"
-            }
 
-            licenses {
-                license {
-                    name = 'LGPLv2.1'
-                    url = 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt'
-                }
-            }
+        pom {
+            name = 'Forge Auto Renaming Tool'
+            description = 'A tool that renames java bytecode elements.'
+            url = 'https://github.com/MinecraftForge/ForgeAutoRenamingTool'
+
+            PomUtils.setGitHubDetails(pom, 'ForgeAutoRenamingTool')
+
+            license PomUtils.Licenses.LGPLv2_1
 
             developers {
-                developer {
-                    id = 'LexManos'
-                    name = 'LexManos'
-                }
+                developer PomUtils.Developers.LexManos
             }
         }
     }
+
     repositories {
         maven gradleutils.getPublishingForgeMaven()
     }
-}
-
-changelog {
-    fromTag INITIAL_CHANGELOG_TAG
 }
