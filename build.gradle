@@ -1,13 +1,12 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import net.minecraftforge.gradleutils.PomUtils
 
 plugins {
     id 'java-library'
     id 'eclipse'
     id 'maven-publish'
-    id 'org.cadixdev.licenser' version '0.6.1'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'net.minecraftforge.gradleutils' version '2.+'
+    id 'net.minecraftforge.licenser' version '1.0.1'
+    id 'net.minecraftforge.gradleutils' version '[2.3,2.4)'
 }
 
 group = 'net.minecraftforge'
@@ -27,17 +26,15 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
-    api 'net.minecraftforge:srgutils:0.5.1'
-    implementation 'org.ow2.asm:asm:9.5'
-    implementation 'org.ow2.asm:asm-commons:9.5'
-    implementation 'org.ow2.asm:asm-tree:9.5'
+    implementation(libs.jopt.simple)
+    api(libs.srgutils)
+    implementation(libs.bundles.asm)
 
-    testImplementation platform('org.junit:junit-bom:5.8.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.powermock:powermock-core:2.0.9'
+    testImplementation(libs.junit.api)
+    testRuntimeOnly(libs.bundles.junit.runtime)
+    testImplementation(libs.powermock)
 
-    compileOnly 'org.jetbrains:annotations:24.0.1'
+    compileOnly(libs.nulls)
 }
 
 tasks.named('test', Test).configure {
@@ -96,7 +93,7 @@ tasks.named('compileJava', JavaCompile).configure {
 }
 
 changelog {
-    fromTag '0.1'
+    from '0.1'
 }
 
 license {
@@ -114,17 +111,17 @@ publishing {
             description = 'A tool that renames java bytecode elements.'
             url = 'https://github.com/MinecraftForge/ForgeAutoRenamingTool'
 
-            PomUtils.setGitHubDetails(pom, 'ForgeAutoRenamingTool')
+            gradleutils.pom.setGitHubDetails(pom, 'ForgeAutoRenamingTool')
 
-            license PomUtils.Licenses.LGPLv2_1
+            license gradleutils.pom.Licenses.LGPLv2_1
 
             developers {
-                developer PomUtils.Developers.LexManos
+                developer gradleutils.pom.Developers.LexManos
             }
         }
     }
 
     repositories {
-        maven gradleutils.getPublishingForgeMaven()
+        maven gradleutils.publishingForgeMaven
     }
 }
