@@ -97,8 +97,7 @@ public class Main {
 
         // Map is optional so that we can run other fixes without renaming.
         // This does mean that it's not strictly a 'renaming' tool but screw it I like the name.
-        if (options.has(mapO)) {
-            File mapF = options.valueOf(mapO);
+        for (File mapF: options.valuesOf(mapO)) {
             log.accept("Names: " + mapF.getAbsolutePath() + "(reversed: " + options.has(reverseO) + ")");
             IMappingFile mappings = IMappingFile.load(mapF);
             if (options.has(reverseO)) {
@@ -106,8 +105,6 @@ public class Main {
             }
 
             builder.add(Transformer.renamerFactory(mappings, !options.has(disableAbstractParam)));
-        } else {
-            log.accept("Names: null");
         }
 
         if (options.has(fixAnnO)) {
