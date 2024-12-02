@@ -6,6 +6,7 @@ package net.minecraftforge.fart.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;

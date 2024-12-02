@@ -5,7 +5,6 @@
 package net.minecraftforge.fart.internal;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;

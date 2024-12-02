@@ -61,6 +61,7 @@ public class Main {
         };
         if (options.has(logO)) {
             PrintStream out = System.out;
+            @SuppressWarnings("resource")
             PrintStream file = new PrintStream(new FileOutputStream(options.valueOf(logO)));
             log = ln -> {
                 if (!ln.isEmpty()) {
