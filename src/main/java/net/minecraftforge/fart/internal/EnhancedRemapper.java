@@ -14,8 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.Remapper;
 
@@ -40,7 +38,32 @@ class EnhancedRemapper extends Remapper {
     }
 
     @Override public String mapModuleName(final String name) { return name; } // TODO? None of the mapping formats support this.
-    @Override public String mapAnnotationAttributeName(final String descriptor, final String name) { return name; } // TODO: Is this just methods?
+    @Override
+    public String mapAnnotationAttributeName(final String descriptor, final String name) {
+        Type type = Type.getType(descriptor);
+        if (type.getSort() != Type.OBJECT)
+            return name;
+
+        MClass cls = getClass(type.getInternalName()).orElse(null);
+        if (cls == null)
+            return name;
+
+        List<MClass.MMethod> lst = cls.getMethods(name).orElse(null);
+        if (lst == null)
+            return name;
+
+        // You should not be able to specify conflicting annotation value names
+        // As annotation attributes can't have parameters, and the bytecode doesn't store the descriptor
+        // But renamers can be weird so log instead of doing weird things.
+        if (lst.size() != 1) {
+            for (MClass.MMethod mtd : lst)
+                log.accept("Duplicate Annotation name: " + cls.getName() + " " + mtd.getName() + mtd.getDescriptor() + " -> " + cls.getMapped() + " " + mtd.getName());
+            return name;
+        }
+
+        return lst.get(0).getMapped();
+    }
+
     @Override public String mapInvokeDynamicMethodName(final String name, final String descriptor) { return name; } // TODO: Lookup how the JVM resolves this and attempt to resolve it to get the owner?
 
     @Override
@@ -79,26 +102,6 @@ class EnhancedRemapper extends Remapper {
             .flatMap(c -> c.getMethod(methodName, methodDescriptor))
             .map(m -> m.mapParameter(index, paramName))
             .orElse(paramName);
-    }
-
-    @Override
-    public Object mapValue(final Object value) {
-        if (value instanceof Handle) {
-            // Backport of ASM!327 https://gitlab.ow2.org/asm/asm/-/merge_requests/327
-            final Handle handle = (Handle) value;
-            final boolean isFieldHandle = handle.getTag() <= Opcodes.H_PUTSTATIC;
-
-            return new Handle(
-                    handle.getTag(),
-                    this.mapType(handle.getOwner()),
-                    isFieldHandle
-                            ? this.mapFieldName(handle.getOwner(), handle.getName(), handle.getDesc())
-                            : this.mapMethodName(handle.getOwner(), handle.getName(), handle.getDesc()),
-                    isFieldHandle ? this.mapDesc(handle.getDesc()) : this.mapMethodDesc(handle.getDesc()),
-                    handle.isInterface());
-        } else {
-            return super.mapValue(value);
-        }
     }
 
     private Optional<MClass> getClass(String cls) {
@@ -142,6 +145,7 @@ class EnhancedRemapper extends Remapper {
         private final Collection<Optional<MField>> fieldsView = Collections.unmodifiableCollection(fields.values());
         private final Map<String, Optional<MMethod>> methods = new ConcurrentHashMap<>();
         private final Collection<Optional<MMethod>> methodsView = Collections.unmodifiableCollection(methods.values());
+        private final Map<String, Optional<List<MMethod>>> methodsByName = new ConcurrentHashMap<>();
 
         MClass(IClassInfo icls, IMappingFile.IClass mcls) {
             if (icls == null && mcls == null)
@@ -327,6 +331,19 @@ class EnhancedRemapper extends Remapper {
 
         public Optional<MMethod> getMethod(String name, String desc) {
             return this.methods.computeIfAbsent(name + desc, k -> Optional.empty());
+        }
+
+        Optional<List<MMethod>> getMethods(String name) {
+            return this.methodsByName.computeIfAbsent(name, k -> {
+                List<MMethod> mtds = new ArrayList<>();
+                for (Optional<MMethod> opt : this.getMethods()) {
+                    MMethod mtd = opt.orElse(null);
+                    if (mtd == null || !k.equals(mtd.getName()))
+                        continue;
+                    mtds.add(mtd);
+                }
+                return mtds.isEmpty() ? Optional.<List<MMethod>>empty() : Optional.of(mtds);
+            });
         }
 
         @Override
