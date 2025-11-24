@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 
 plugins {
     id 'java-library'
@@ -81,6 +82,12 @@ tasks.named('shadowJar', ShadowJar).configure {
 
     relocations.each {
         relocate it, "net.minecraftforge.fart.relocated.$it"
+    }
+
+    // Rewrite JOpt's message files, so that help text is displayed nicely.
+    transform(PropertiesFileTransformer) {
+        paths = [ 'Messages.properties$' ]
+        keyTransformer = { key -> "net.minecraftforge.fart.relocated.$key".toString() }
     }
 }
 
