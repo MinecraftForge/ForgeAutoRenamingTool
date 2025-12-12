@@ -9,11 +9,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
@@ -28,6 +30,36 @@ import net.minecraftforge.srgutils.IMappingFile;
 
 public class Main {
     public static void main(String[] args) throws IOException {
+        List<String> params = new ArrayList<>();
+        for (int x = 0; x < args.length; x++) {
+            if (args[x].startsWith("--cfg")) {
+                String path = null;
+                if (args[x].startsWith("--cfg=")) {
+                    path = args[x].substring(6);
+                } else if (args.length > x + 1) {
+                    path = args[++x];
+                } else {
+                    System.out.println("Must specify a file when using --cfg argument.");
+                    return;
+                }
+
+                Path file = Paths.get(path);
+                if (!Files.exists(file)) {
+                    System.out.println("error: missing config '" + path + "'");
+                    return;
+                }
+                try (Stream<String> stream = Files.lines(file)) {
+                    stream.forEach(params::add);
+                } catch (IOException e) {
+                    System.out.println("error: Failed to read config file '" + path + "'");
+                    throw new RuntimeException(e);
+                }
+            } else {
+                params.add(args[x]);
+            }
+        }
+        args = params.toArray(new String[params.size()]);
+
         OptionParser parser = new OptionParser();
         OptionSpec<File> inputO  = parser.accepts("input",  "Input jar file").withRequiredArg().ofType(File.class).required();
         OptionSpec<File> outputO = parser.accepts("output", "Output jar file, if unspecifed, overwrites input").withRequiredArg().ofType(File.class);

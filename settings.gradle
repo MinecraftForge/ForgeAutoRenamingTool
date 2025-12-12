@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         libs {
             library('jopt-simple', 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3')
-            library('srgutils', 'net.minecraftforge:srgutils:0.5.10')
+            library('srgutils', 'net.minecraftforge:srgutils:0.6.0')
             library('nulls', 'org.jetbrains:annotations:24.0.1')
             library('powermock', 'org.powermock:powermock-core:2.0.9')
 
