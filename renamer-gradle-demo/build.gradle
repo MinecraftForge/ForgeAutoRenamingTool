@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.renamer'
+}
+
+group = 'net.minecraftforge'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+// I dont know why this needs to be here and not in the settings.gradle
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
+    flatDir dirs: './libs'
+}
+
+dependencies {
+    compileOnly libs.log4j.api
+}
+
+publishing {
+    publications.register('mavenJava', MavenPublication) {
+        from components.java
+    }
+}
+
+renamer.rename(jar) {
+    map = files('libs/mappings_test-1.0.tsrg.gz')
+}
+
+renamer.mappings('test', '1.0')
+renamer.rename(jar, 'jarRenameRemote')

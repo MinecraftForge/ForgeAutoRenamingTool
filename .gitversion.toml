@@ -1,0 +1,3 @@
+[gradlePlugin]
+path = "renamer-gradle"
+tag = "gradle"
