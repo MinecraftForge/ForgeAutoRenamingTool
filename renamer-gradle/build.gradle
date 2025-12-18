@@ -1,0 +1,112 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.ShadowJavaPlugin
+import org.gradle.api.attributes.plugin.GradlePluginApiVersion
+
+plugins {
+    id 'java-gradle-plugin'
+    id 'idea'
+    id 'eclipse'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradleutils'
+    alias libs.plugins.gitversion
+    alias libs.plugins.changelog
+    alias libs.plugins.licenser
+    alias libs.plugins.plugin.publish
+    alias libs.plugins.shadow
+}
+
+gradleutils.displayName = 'Renamer Gradle Plugin'
+description = 'Utilities for renaming java related files.'
+base.archivesName = 'renamer-gradle'
+group = 'net.minecraftforge'
+version = gitversion.tagOffset
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+    //withJavadocJar()
+}
+
+gradleutils.pluginDevDefaults(configurations, libs.versions.gradle)
+
+dependencies {
+    // Static Analysis
+    compileOnly libs.nulls
+    compileOnly libs.jetbrains
+
+    // Gradle API
+    compileOnly libs.gradle
+
+    // GradleUtils Shared Base
+    implementation libs.gradleutils.shared
+}
+
+license {
+    header = rootProject.file('../LICENSE-header.txt')
+    newLine = false
+    exclude '**/*.properties'
+}
+
+tasks.named('jar', Jar) {
+    archiveClassifier = 'thin'
+}
+
+tasks.named('shadowJar', ShadowJar) {
+    enableAutoRelocation = true
+    archiveClassifier = null
+    relocationPrefix = 'net.minecraftforge.renamer.gradle.shadow'
+}
+
+/*
+tasks.withType(Javadoc).configureEach {
+    javadocTool = javaToolchains.javadocToolFor { languageVersion = JavaLanguageVersion.of(24) }
+}
+tasks.named('javadocJar') {
+    // Remove 4MB from javadocs jar
+    exclude 'resource-files/fonts/'
+}
+*/
+
+changelog {
+    fromBase()
+}
+
+gradlePlugin {
+    website = gitversion.url
+    vcsUrl = gitversion.url + '.git'
+
+    plugins.register('renamer') {
+        id = 'net.minecraftforge.renamer'
+        implementationClass = 'net.minecraftforge.renamer.gradle.RenamerPlugin'
+        displayName = gradleutils.displayName
+        description = project.description
+        tags = ['minecraftforge']
+    }
+}
+
+publishing {
+    repositories {
+        maven gradleutils.getPublishingForgeMaven(rootProject.file('../repo'))
+    }
+
+    publications.register('pluginMaven', MavenPublication) {
+        changelog.publish(it)
+        gradleutils.promote(it)
+
+        pom { pom ->
+            name = gradleutils.displayName
+            description = project.description
+
+            gradleutils.pom.addRemoteDetails(pom)
+
+            licenses {
+                license gradleutils.pom.licenses.LGPLv2_1
+            }
+
+            developers {
+                developer gradleutils.pom.developers.Jonathing
+                developer gradleutils.pom.developers.LexManos
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+pluginManagement {
+    includeBuild '../renamer-gradle'
+
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net' }
+        //mavenLocal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+    id 'net.minecraftforge.gradleutils' version '3.3.13'
+}
+
+rootProject.name = 'renamer-gradle-demo'
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven gradleutils.forgeMaven
+    }
+
+    versionCatalogs.register('libs') {
+        version 'log4j', '2.19.0'
+        library 'log4j-api',  'org.apache.logging.log4j', 'log4j-api'  versionRef 'log4j'
+    }
+}

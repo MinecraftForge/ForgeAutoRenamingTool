@@ -5,19 +5,21 @@ plugins {
     id 'java-library'
     id 'eclipse'
     id 'maven-publish'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'net.minecraftforge.licenser' version '1.0.1'
-    id 'net.minecraftforge.gradleutils' version '[2.3,2.4)'
+    id 'net.minecraftforge.gradleutils'
+    alias libs.plugins.gitversion
+    alias libs.plugins.changelog
+    alias libs.plugins.licenser
+    alias libs.plugins.shadow
 }
 
+gradleutils.displayName = 'Forge Auto Renaming Tool'
+description = 'A command line tool to rename java class files'
 group = 'net.minecraftforge'
-version = gradleutils.getTagOffsetBranchVersion(null, 'master', 'HEAD')
+version = gitversion.tagOffset
 println "Version: $version"
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(8)
-    }
+    toolchain.languageVersion = JavaLanguageVersion.of(8)
     withSourcesJar()
 }
 
@@ -38,52 +40,31 @@ dependencies {
     compileOnly(libs.nulls)
 }
 
-tasks.named('test', Test).configure {
+tasks.named('test', Test) {
     useJUnitPlatform()
     testLogging {
         events 'passed', 'skipped', 'failed'
     }
 }
 
-tasks.named('jar', Jar).configure {
+tasks.named('jar') {
     manifest {
         attributes('Main-Class': 'net.minecraftforge.fart.Main')
         attributes([
-                'Specification-Title':      'ForgeAutoRenamingTool',
-                'Specification-Vendor':     'Forge Development LLC',
-                'Specification-Version':    gradleutils.gitInfo.tag,
-                'Implementation-Title':     'ForgeAutoRenamingTool',
-                'Implementation-Version':   project.version,
-                'Implementation-Vendor':    'Forge Development LLC'
+            'Specification-Title':      'ForgeAutoRenamingTool',
+            'Specification-Vendor':     'Forge Development LLC',
+            'Specification-Version':    gitversion.info.tag,
+            'Implementation-Title':     'ForgeAutoRenamingTool',
+            'Implementation-Version':   project.version,
+            'Implementation-Vendor':    'Forge Development LLC'
         ], 'net/minecraftforge/fart/')
     }
 }
 
-tasks.named('shadowJar', ShadowJar).configure {
-    manifest {
-        attributes('Main-Class': 'net.minecraftforge.fart.Main')
-        attributes([
-                'Specification-Title':      'ForgeAutoRenamingTool',
-                'Specification-Vendor':     'Forge Development LLC',
-                'Specification-Version':    gradleutils.gitInfo.tag,
-                'Implementation-Title':     'ForgeAutoRenamingTool',
-                'Implementation-Version':   project.version,
-                'Implementation-Vendor':    'Forge Development LLC'
-        ], 'net/minecraftforge/fart/')
-    }
-
+tasks.named('shadowJar') {
     minimize()
-
-    final List<String> relocations = [
-            'org.objectweb.asm',
-            'net.minecraftforge.srgutils',
-            'joptsimple'
-    ]
-
-    relocations.each {
-        relocate it, "net.minecraftforge.fart.relocated.$it"
-    }
-
+    enableAutoRelocation = true
+    relocationPrefix = 'net.minecraftforge.fart.relocated'
     // Rewrite JOpt's message files, so that help text is displayed nicely.
     transform(PropertiesFileTransformer) {
         paths = [ 'Messages.properties$' ]
@@ -91,11 +72,11 @@ tasks.named('shadowJar', ShadowJar).configure {
     }
 }
 
-tasks.named('assemble').configure {
+tasks.named('assemble') {
     dependsOn 'shadowJar'
 }
 
-tasks.named('compileJava', JavaCompile).configure {
+tasks.named('compileJava', JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
@@ -118,12 +99,12 @@ publishing {
             description = 'A tool that renames java bytecode elements.'
             url = 'https://github.com/MinecraftForge/ForgeAutoRenamingTool'
 
-            gradleutils.pom.setGitHubDetails(pom, 'ForgeAutoRenamingTool')
+            gradleutils.pom.addRemoteDetails(pom)
 
-            license gradleutils.pom.Licenses.LGPLv2_1
+            license gradleutils.pom.licenses.LGPLv2_1
 
             developers {
-                developer gradleutils.pom.Developers.LexManos
+                developer gradleutils.pom.developers.LexManos
             }
         }
     }
