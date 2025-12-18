@@ -35,7 +35,7 @@ abstract class RenamerProblems extends EnhancedProblems {
 
     void reportNoMainClass(RenamerTask task) {
         this.getLogger().error("ERROR: Failed to find Main-Class for Renamer Tool");
-        this.report("rename-duplicate-task-name", "Cannot register renamer task", spec -> spec
+        this.report("rename-no-main-class", "Renamer tool not executable jar", spec -> spec
             .details("""
                 When using a custom renamer tool, it must be a executable jar. With no transitive depdencies.
                 If this is not the case, then you must specify the main class using %s.mainClass = 'some.class'
@@ -43,6 +43,19 @@ abstract class RenamerProblems extends EnhancedProblems {
             .severity(Severity.ERROR)
             .stackLocation()
             .solution("Specify main class for " + task.getName())
+            .solution(HELP_MESSAGE));
+    }
+
+    void reportMultipleMapFiles(RenamerTask task) {
+        this.getLogger().error("ERROR: Failed to find Mapping File");
+        this.report("rename-multiple-map-files", "Renamer Map File returned to many files", spec -> spec
+            .details("""
+                Only expected one file for the renaming map task. If using a configuration to resolve the file
+                be sure to disable transtive dependencies.
+            """.formatted(task.getName()))
+            .severity(Severity.ERROR)
+            .stackLocation()
+            .solution("Specify one map file for " + task.getName())
             .solution(HELP_MESSAGE));
     }
 }

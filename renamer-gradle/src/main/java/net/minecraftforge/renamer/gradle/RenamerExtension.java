@@ -36,5 +36,6 @@ public sealed interface RenamerExtension permits RenamerExtensionInternal {
     void rename(AbstractArchiveTask task, String name, @Nullable Action<RenamerTask> config);
 
     void setTool(String coords);
+
     String getTool();
 }

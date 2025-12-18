@@ -23,9 +23,9 @@ import java.io.File;
 import javax.inject.Inject;
 
 abstract class RenamerExtensionImpl implements RenamerExtensionInternal {
+    @SuppressWarnings("unused")
     private static final Logger LOGGER = Logging.getLogger(RenamerExtension.class);
     private final Project project;
-    private final RenamerPlugin plugin;
     private final RenamerProblems problems = this.getObjects().newInstance(RenamerProblems.class);
 
     private Configuration toolConfig;
@@ -39,7 +39,6 @@ abstract class RenamerExtensionImpl implements RenamerExtensionInternal {
     @Inject
     public RenamerExtensionImpl(RenamerPlugin plugin, Project project) {
         this.project = project;
-        this.plugin = plugin;
         this.setTool(Constants.ARTIFACT);
     }
 
@@ -69,7 +68,6 @@ abstract class RenamerExtensionImpl implements RenamerExtensionInternal {
 
     @Override
     public void rename(AbstractArchiveTask source, String name, @Nullable Action<RenamerTask> config) {
-        LOGGER.lifecycle("Registering: " + name + " for " + source.getName());
         var existing = project.getTasks().findByName(name);
         if (existing != null) {
             problems.reportIllegalTaskName(existing, name);
@@ -93,7 +91,7 @@ abstract class RenamerExtensionImpl implements RenamerExtensionInternal {
                 else
                     fileName = sourceName.substring(0, sourceName.length() - 1 - ext.length()) + "-renamed." + ext;
 
-                LOGGER.lifecycle("Output Provider: " + new File(sourceFile.getParentFile(), fileName));
+                //LOGGER.lifecycle("Output Provider: " + new File(sourceFile.getParentFile(), fileName));
                 return new File(sourceFile.getParentFile(), fileName);
             })));
 

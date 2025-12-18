@@ -41,6 +41,7 @@ import net.minecraftforge.gradleutils.shared.EnhancedTask;
 import net.minecraftforge.gradleutils.shared.SharedUtil;
 
 public abstract class RenamerTask extends DefaultTask implements EnhancedTask<RenamerProblems> {
+    @SuppressWarnings("unused")
     private static final Logger LOGGER = Logging.getLogger(RenamerExtension.class);
 
     private final RenamerProblems problems = this.getObjects().newInstance(this.problemsType());
@@ -73,12 +74,6 @@ public abstract class RenamerTask extends DefaultTask implements EnhancedTask<Re
 
     @TaskAction
     protected ExecResult run() throws IOException {
-        LOGGER.lifecycle("Input:  " + path(this.getInput()));
-        LOGGER.lifecycle("Output: " + path(this.getOutput()));
-        LOGGER.lifecycle("Map:    " + this.getMapFile().getAbsolutePath());
-        this.getToolClasspath().forEach(f -> LOGGER.lifecycle("Tool: " + f.getAbsolutePath()));
-        this.getClasspath().forEach(f -> LOGGER.lifecycle("Compile: " + f.getAbsolutePath()));
-
         var logger = getLogger();
 
         var stdOutLevel = LogLevel.LIFECYCLE;
@@ -144,7 +139,7 @@ public abstract class RenamerTask extends DefaultTask implements EnhancedTask<Re
         try {
             return this.getMap().getSingleFile();
         } catch (IllegalStateException exception) {
-            problems.reportNoMainClass(this);
+            problems.reportMultipleMapFiles(this);
             throw exception;
         }
     }

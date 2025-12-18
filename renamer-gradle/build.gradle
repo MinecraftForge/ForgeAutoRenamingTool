@@ -24,7 +24,7 @@ version = gitversion.tagOffset
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
-    withJavadocJar()
+    //withJavadocJar()
 }
 
 gradleutils.pluginDevDefaults(configurations, libs.versions.gradle)
@@ -39,7 +39,6 @@ dependencies {
 
     // GradleUtils Shared Base
     implementation libs.gradleutils.shared
-
 }
 
 license {
@@ -58,9 +57,15 @@ tasks.named('shadowJar', ShadowJar) {
     relocationPrefix = 'net.minecraftforge.renamer.gradle.shadow'
 }
 
+/*
 tasks.withType(Javadoc).configureEach {
     javadocTool = javaToolchains.javadocToolFor { languageVersion = JavaLanguageVersion.of(24) }
 }
+tasks.named('javadocJar') {
+    // Remove 4MB from javadocs jar
+    exclude 'resource-files/fonts/'
+}
+*/
 
 changelog {
     fromBase()
